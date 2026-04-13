@@ -353,6 +353,15 @@ function VasDetay({ form, set, tenantId }) {
 export default function SozlesmeModal({ sozlesme, musteriler, tenantId, onKaydet, onKapat }) {
   const [form, setForm] = useState(sozlesme ? { ...bos, ...sozlesme } : { ...bos })
   const [aktifTab, setAktifTab] = useState('genel')
+  const [grupSirketleri, setGrupSirketleri] = useState([])
+
+  useEffect(() => {
+    const yukle = async () => {
+      const snap = await getDocs(collection(db, 'grup_sirketleri'))
+      setGrupSirketleri(snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => a.ad.localeCompare(b.ad)))
+    }
+    yukle()
+  }, [])
 
   const set = (key, val) => setForm(f => ({ ...f, [key]: val }))
 
@@ -416,9 +425,13 @@ export default function SozlesmeModal({ sozlesme, musteriler, tenantId, onKaydet
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-gray-500 mb-1">İmzalayan Şirket</label>
-                  <input value={form.imzalayan_sirket} onChange={e => set('imzalayan_sirket', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-blue-400"
-                    placeholder="CEVA Logistics Ltd. Şti." />
+                  <select value={form.imzalayan_sirket_id || ''} onChange={e => set('imzalayan_sirket_id', e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:outline-none focus:border-blue-400">
+                    <option value="">Seçin (opsiyonel)...</option>
+                    {grupSirketleri.map(s => (
+                      <option key={s.id} value={s.id}>{s.ad}</option>
+                    ))}
+                  </select>
                 </div>
               </div>
               <div>
