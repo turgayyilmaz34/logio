@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react'
 import { collection, getDocs, query, where } from 'firebase/firestore'
 import { db } from '../firebase'
@@ -19,38 +18,105 @@ const bos = {
   urun_tipleri: [],
   artis_var: false, artis_tipi: 'TÜFE', artis_zamanlama: 'yillik_donum',
   artis_belirli_tarih: '', artis_ozel_formul: '',
-  // Depolama
   dep_fiyatlandirma_modu: 'm2',
-  dep_sabit_baz: '', dep_m2_birim_fiyat: '', dep_asmakat_fiyat: '',
+  dep_sabit_baz: '', dep_m2_birim_fiyat: '',
+  dep_asmakat_musteri_fiyat: '',
+  dep_asmakat_maliyet_fiyat: '',
   dep_tavan_katsayisi_esigi: '', dep_tavan_katsayisi_orani: '',
+  dep_secili_tesis_id: '',
   dep_kat_ids: [],
-  // Transport
-  tra_olcum_modu: 'karma',
-  tra_kalemler: [],
+  tra_olcum_modu: 'karma', tra_kalemler: [],
   tra_arac_sayisi: '', tra_surucu_sayisi: '',
-  // VAS
-  vas_tesis_id: '', vas_depolama_ucreti: false,
-  vas_kalemler: [],
+  vas_tesis_id: '', vas_depolama_ucreti: false, vas_kalemler: [],
   notlar: '',
 }
 
 function DepolamaDetay({ form, set, tenantId }) {
-  const [katlar, setKatlar] = useState([])
+  const [tesisler, setTesisler] = useState([])
+  const [tumKatlar, setTumKatlar] = useState([])
 
   useEffect(() => {
     const yukle = async () => {
-      const snap = await getDocs(query(collection(db, 'katlar'), where('tenant_id', '==', tenantId)))
-      setKatlar(snap.docs.map(d => ({ id: d.id, ...d.data() })))
+      const [tSnap, kSnap] = await Promise.all([
+        getDocs(query(collection(db, 'tesisler'), where('tenant_id', '==', tenantId))),
+        getDocs(query(collection(db, 'katlar'), where('tenant_id', '==', tenantId)))
+      ])
+      setTesisler(tSnap.docs.map(d => ({ id: d.id, ...d.data() })))
+      setTumKatlar(kSnap.docs.map(d => ({ id: d.id, ...d.data() })))
     }
     yukle()
   }, [])
+
+  const seciliTesisKatlari = form.dep_secili_tesis_id
+    ? tumKatlar.filter(k => k.tesis_id === form.dep_secili_tesis_id)
+    : []
+
+  const tesisDegisti = (tesisId) => {
+    set('dep_secili_tesis_id', tesisId)
+    set('dep_kat_ids', [])
+  }
 
   const toggleKat = (id) => set('dep_kat_ids', form.dep_kat_ids.includes(id)
     ? form.dep_kat_ids.filter(k => k !== id)
     : [...form.dep_kat_ids, id])
 
+  const seciliKatlar = tumKatlar.filter(k => form.dep_kat_ids.includes(k.id))
+  const asmakatVar = seciliKatlar.some(k => k.asmakat_var && k.asmakat_m2 > 0)
+  const toplamM2 = seciliKatlar.reduce((acc, k) => acc + (k.kullanilabilir_m2 || 0), 0)
+  const toplamAsmakatM2 = seciliKatlar.reduce((acc, k) => acc + (k.asmakat_var ? k.asmakat_m2 || 0 : 0), 0)
+
   return (
     <div className="space-y-4">
+      {/* Tesis seçimi */}
+      <div>
+        <label className="block text-xs font-medium text-gray-500 mb-1">Tesis *</label>
+        <select value={form.dep_secili_tesis_id} onChange={e => tesisDegisti(e.target.value)}
+          className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:outline-none focus:border-blue-400">
+          <option value="">Önce tesis seçin...</option>
+          {tesisler.map(t => (
+            <option key={t.id} value={t.id}>{t.ad} — {t.sehir}</option>
+          ))}
+        </select>
+      </div>
+
+      {/* Kat seçimi — tesis seçilince */}
+      {form.dep_secili_tesis_id && (
+        <div>
+          <label className="block text-xs font-medium text-gray-500 mb-1.5">
+            Katlar
+            {toplamM2 > 0 && (
+              <span className="ml-2 text-blue-600 font-medium">
+                Seçili: {toplamM2.toLocaleString('tr-TR')} m²
+                {toplamAsmakatM2 > 0 && ` + ${toplamAsmakatM2.toLocaleString('tr-TR')} m² asmakat`}
+              </span>
+            )}
+          </label>
+          {seciliTesisKatlari.length === 0 ? (
+            <div className="text-xs text-gray-400 italic">Bu tesiste kat tanımlı değil.</div>
+          ) : (
+            <div className="space-y-1 max-h-40 overflow-y-auto border border-gray-100 rounded-lg p-2">
+              {seciliTesisKatlari.map(k => (
+                <label key={k.id} className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 px-2 py-1.5 rounded">
+                  <input type="checkbox" checked={form.dep_kat_ids.includes(k.id)}
+                    onChange={() => toggleKat(k.id)} className="rounded" />
+                  <div className="flex-1">
+                    <span className="text-xs font-medium text-gray-700">{k.kat_adi}</span>
+                    <span className="text-xs text-gray-400 ml-2">{(k.kullanilabilir_m2 || 0).toLocaleString()} m²</span>
+                    {k.asmakat_var && k.asmakat_m2 > 0 && (
+                      <span className="text-xs text-orange-500 ml-2">+ {k.asmakat_m2} m² asmakat</span>
+                    )}
+                    {k.alan_tipleri?.length > 0 && (
+                      <span className="text-xs text-gray-300 ml-2">{k.alan_tipleri.join(', ')}</span>
+                    )}
+                  </div>
+                </label>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Fiyatlandırma modu */}
       <div>
         <label className="block text-xs font-medium text-gray-500 mb-1.5">Fiyatlandırma Modu</label>
         <div className="flex gap-2 flex-wrap">
@@ -70,15 +136,11 @@ function DepolamaDetay({ form, set, tenantId }) {
             className="w-full px-3 py-1.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-blue-400" placeholder="0" />
         </div>
         <div>
-          <label className="block text-xs text-gray-500 mb-1">m² Birim Fiyat ({form.para_birimi})</label>
+          <label className="block text-xs text-gray-500 mb-1">m² Birim Fiyat — Müşteri ({form.para_birimi})</label>
           <input type="number" step="0.01" value={form.dep_m2_birim_fiyat} onChange={e => set('dep_m2_birim_fiyat', e.target.value)}
             className="w-full px-3 py-1.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-blue-400" placeholder="0.00" />
         </div>
-        <div>
-          <label className="block text-xs text-gray-500 mb-1">Asmakat Birim Fiyat ({form.para_birimi})</label>
-          <input type="number" step="0.01" value={form.dep_asmakat_fiyat} onChange={e => set('dep_asmakat_fiyat', e.target.value)}
-            className="w-full px-3 py-1.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-blue-400" placeholder="0.00" />
-        </div>
+
         {form.dep_fiyatlandirma_modu === 'tavan_katsayisi' && (
           <>
             <div>
@@ -87,7 +149,7 @@ function DepolamaDetay({ form, set, tenantId }) {
                 className="w-full px-3 py-1.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-blue-400" placeholder="8.0" />
             </div>
             <div>
-              <label className="block text-xs text-gray-500 mb-1">Katsayı (örn. 1.20 = %20 premium)</label>
+              <label className="block text-xs text-gray-500 mb-1">Katsayı (1.20 = %20 premium)</label>
               <input type="number" step="0.01" value={form.dep_tavan_katsayisi_orani} onChange={e => set('dep_tavan_katsayisi_orani', e.target.value)}
                 className="w-full px-3 py-1.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-blue-400" placeholder="1.20" />
             </div>
@@ -95,18 +157,30 @@ function DepolamaDetay({ form, set, tenantId }) {
         )}
       </div>
 
-      {katlar.length > 0 && (
-        <div>
-          <label className="block text-xs font-medium text-gray-500 mb-1.5">Bağlı Katlar (çoklu seçim)</label>
-          <div className="space-y-1 max-h-32 overflow-y-auto">
-            {katlar.map(k => (
-              <label key={k.id} className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 px-2 py-1 rounded">
-                <input type="checkbox" checked={form.dep_kat_ids.includes(k.id)}
-                  onChange={() => toggleKat(k.id)} className="rounded" />
-                <span className="text-xs text-gray-700">{k.kat_adi}</span>
-                <span className="text-xs text-gray-400">{k.kullanilabilir_m2?.toLocaleString()} m²</span>
-              </label>
-            ))}
+      {/* Asmakat — seçili katlarda asmakat varsa göster */}
+      {asmakatVar && (
+        <div className="bg-orange-50 border border-orange-100 rounded-lg p-3 space-y-3">
+          <div className="text-xs font-medium text-orange-700">
+            Asmakat ({toplamAsmakatM2.toLocaleString()} m²) — Doluluk Dışı, Ek Gelir
+          </div>
+          <div className="text-xs text-orange-600">
+            Doluluk hesabına dahil edilmez. Müşteriye ayrı faturalanır, sizin için bonus gelirdir.
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs text-gray-500 mb-1">Asmakat — Müşteri Fiyatı ({form.para_birimi})</label>
+              <input type="number" step="0.01" value={form.dep_asmakat_musteri_fiyat}
+                onChange={e => set('dep_asmakat_musteri_fiyat', e.target.value)}
+                className="w-full px-3 py-1.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-blue-400"
+                placeholder="0.00" />
+            </div>
+            <div>
+              <label className="block text-xs text-gray-500 mb-1">Asmakat — Maliyet ({form.para_birimi})</label>
+              <input type="number" step="0.01" value={form.dep_asmakat_maliyet_fiyat}
+                onChange={e => set('dep_asmakat_maliyet_fiyat', e.target.value)}
+                className="w-full px-3 py-1.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-blue-400"
+                placeholder="0.00 (ücretsizse 0 bırakın)" />
+            </div>
           </div>
         </div>
       )}
@@ -141,10 +215,7 @@ function TransportDetay({ form, set }) {
       </div>
 
       <div>
-        <div className="flex items-center justify-between mb-2">
-          <label className="block text-xs font-medium text-gray-500">Fiyat Kalemleri</label>
-        </div>
-
+        <div className="text-xs font-medium text-gray-500 mb-2">Fiyat Kalemleri</div>
         {form.tra_kalemler.map(k => (
           <div key={k.id} className="flex items-center justify-between bg-gray-50 rounded-lg px-3 py-2 mb-1.5">
             <div className="text-xs">
@@ -156,18 +227,15 @@ function TransportDetay({ form, set }) {
             <button onClick={() => kalemSil(k.id)} className="text-xs text-red-400 hover:text-red-600">Sil</button>
           </div>
         ))}
-
         <div className="border border-gray-200 rounded-lg p-3 space-y-2">
           <div className="grid grid-cols-3 gap-2">
             <div>
-              <label className="block text-xs text-gray-400 mb-1">Tip</label>
               <select value={yeniKalem.tip} onChange={e => setYeniKalem(f => ({ ...f, tip: e.target.value }))}
                 className="w-full px-2 py-1.5 border border-gray-200 rounded-lg text-xs bg-white focus:outline-none">
                 {['arac', 'surucu', 'yakit', 'sefer', 'km'].map(t => <option key={t} value={t}>{t}</option>)}
               </select>
             </div>
             <div className="col-span-2">
-              <label className="block text-xs text-gray-400 mb-1">Açıklama</label>
               <input value={yeniKalem.aciklama} onChange={e => setYeniKalem(f => ({ ...f, aciklama: e.target.value }))}
                 className="w-full px-2 py-1.5 border border-gray-200 rounded-lg text-xs focus:outline-none focus:border-blue-400"
                 placeholder="Araç kirası, yakıt vs." />
@@ -176,8 +244,7 @@ function TransportDetay({ form, set }) {
           <div className="grid grid-cols-2 gap-2">
             <div className="flex gap-1">
               <input type="number" value={yeniKalem.maliyet_fiyat} onChange={e => setYeniKalem(f => ({ ...f, maliyet_fiyat: e.target.value }))}
-                className="flex-1 px-2 py-1.5 border border-gray-200 rounded-lg text-xs focus:outline-none focus:border-red-400"
-                placeholder="Maliyet" />
+                className="flex-1 px-2 py-1.5 border border-gray-200 rounded-lg text-xs focus:outline-none" placeholder="Maliyet" />
               <select value={yeniKalem.maliyet_pb} onChange={e => setYeniKalem(f => ({ ...f, maliyet_pb: e.target.value }))}
                 className="w-16 px-1 py-1.5 border border-gray-200 rounded-lg text-xs bg-white focus:outline-none">
                 {PARA_BIRIMLERI.map(pb => <option key={pb} value={pb}>{pb}</option>)}
@@ -185,8 +252,7 @@ function TransportDetay({ form, set }) {
             </div>
             <div className="flex gap-1">
               <input type="number" value={yeniKalem.musteri_fiyat} onChange={e => setYeniKalem(f => ({ ...f, musteri_fiyat: e.target.value }))}
-                className="flex-1 px-2 py-1.5 border border-gray-200 rounded-lg text-xs focus:outline-none focus:border-green-400"
-                placeholder="Müşteri fiyatı" />
+                className="flex-1 px-2 py-1.5 border border-gray-200 rounded-lg text-xs focus:outline-none" placeholder="Müşteri fiyatı" />
               <select value={yeniKalem.musteri_pb} onChange={e => setYeniKalem(f => ({ ...f, musteri_pb: e.target.value }))}
                 className="w-16 px-1 py-1.5 border border-gray-200 rounded-lg text-xs bg-white focus:outline-none">
                 {PARA_BIRIMLERI.map(pb => <option key={pb} value={pb}>{pb}</option>)}
@@ -230,12 +296,10 @@ function VasDetay({ form, set, tenantId }) {
           {tesisler.map(t => <option key={t.id} value={t.id}>{t.ad} — {t.sehir}</option>)}
         </select>
       </div>
-
       <label className="flex items-center gap-2 cursor-pointer">
         <input type="checkbox" checked={form.vas_depolama_ucreti} onChange={e => set('vas_depolama_ucreti', e.target.checked)} className="rounded" />
         <span className="text-xs text-gray-600">Ayrıca depolama ücreti var</span>
       </label>
-
       <div>
         <div className="text-xs font-medium text-gray-500 mb-2">VAS Kalemleri</div>
         {form.vas_kalemler.map(k => (
@@ -243,20 +307,18 @@ function VasDetay({ form, set, tenantId }) {
             <div className="text-xs">
               <span className="font-medium text-gray-700">{k.aciklama}</span>
               <span className="text-gray-400 ml-2">({k.tip})</span>
-              <span className="text-red-600 ml-3">Maliyet: {k.maliyet_fiyat} {k.maliyet_pb}</span>
-              <span className="text-green-600 ml-3">Müşteri: {k.musteri_fiyat} {k.musteri_pb}</span>
+              <span className="text-red-600 ml-3">{k.maliyet_fiyat} {k.maliyet_pb}</span>
+              <span className="text-green-600 ml-3">{k.musteri_fiyat} {k.musteri_pb}</span>
             </div>
             <button onClick={() => kalemSil(k.id)} className="text-xs text-red-400">Sil</button>
           </div>
         ))}
         <div className="border border-gray-200 rounded-lg p-3 space-y-2">
           <div className="grid grid-cols-3 gap-2">
-            <div>
-              <select value={yeniKalem.tip} onChange={e => setYeniKalem(f => ({ ...f, tip: e.target.value }))}
-                className="w-full px-2 py-1.5 border border-gray-200 rounded-lg text-xs bg-white focus:outline-none">
-                {['islem', 'personel', 'saat', 'diger'].map(t => <option key={t} value={t}>{t}</option>)}
-              </select>
-            </div>
+            <select value={yeniKalem.tip} onChange={e => setYeniKalem(f => ({ ...f, tip: e.target.value }))}
+              className="w-full px-2 py-1.5 border border-gray-200 rounded-lg text-xs bg-white focus:outline-none">
+              {['islem', 'personel', 'saat', 'diger'].map(t => <option key={t} value={t}>{t}</option>)}
+            </select>
             <div className="col-span-2">
               <input value={yeniKalem.aciklama} onChange={e => setYeniKalem(f => ({ ...f, aciklama: e.target.value }))}
                 className="w-full px-2 py-1.5 border border-gray-200 rounded-lg text-xs focus:outline-none"
@@ -335,7 +397,6 @@ export default function SozlesmeModal({ sozlesme, musteriler, tenantId, onKaydet
 
         <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
 
-          {/* GENEL */}
           {aktifTab === 'genel' && (
             <div className="space-y-4">
               <div>
@@ -344,7 +405,6 @@ export default function SozlesmeModal({ sozlesme, musteriler, tenantId, onKaydet
                   className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-blue-400"
                   placeholder="Otomotiv Depolama 2024-2026" />
               </div>
-
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-medium text-gray-500 mb-1">Müşteri *</label>
@@ -361,7 +421,6 @@ export default function SozlesmeModal({ sozlesme, musteriler, tenantId, onKaydet
                     placeholder="CEVA Logistics Ltd. Şti." />
                 </div>
               </div>
-
               <div>
                 <label className="block text-xs font-medium text-gray-500 mb-1.5">Sözleşme Tipi</label>
                 <div className="flex gap-2">
@@ -373,7 +432,6 @@ export default function SozlesmeModal({ sozlesme, musteriler, tenantId, onKaydet
                   ))}
                 </div>
               </div>
-
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-medium text-gray-500 mb-1">Başlangıç *</label>
@@ -386,7 +444,6 @@ export default function SozlesmeModal({ sozlesme, musteriler, tenantId, onKaydet
                     className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-blue-400" />
                 </div>
               </div>
-
               <div className="grid grid-cols-3 gap-4">
                 <div>
                   <label className="block text-xs font-medium text-gray-500 mb-1">Para Birimi</label>
@@ -414,7 +471,6 @@ export default function SozlesmeModal({ sozlesme, musteriler, tenantId, onKaydet
                     className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-blue-400" placeholder="90" />
                 </div>
               </div>
-
               <div>
                 <label className="block text-xs font-medium text-gray-500 mb-1">Sözleşme Yapısı</label>
                 <div className="flex gap-2">
@@ -426,7 +482,6 @@ export default function SozlesmeModal({ sozlesme, musteriler, tenantId, onKaydet
                   ))}
                 </div>
               </div>
-
               <div>
                 <label className="block text-xs font-medium text-gray-500 mb-1">Notlar</label>
                 <textarea value={form.notlar} onChange={e => set('notlar', e.target.value)} rows={2}
@@ -435,7 +490,6 @@ export default function SozlesmeModal({ sozlesme, musteriler, tenantId, onKaydet
             </div>
           )}
 
-          {/* TİPE ÖZEL DETAY */}
           {aktifTab === 'detay' && (
             <div>
               {form.tip === 'depolama' && <DepolamaDetay form={form} set={set} tenantId={tenantId} />}
@@ -443,16 +497,15 @@ export default function SozlesmeModal({ sozlesme, musteriler, tenantId, onKaydet
               {form.tip === 'vas' && <VasDetay form={form} set={set} tenantId={tenantId} />}
               {form.tip === 'karma' && (
                 <div className="space-y-6">
-                  <div className="text-xs text-gray-400 bg-gray-50 px-3 py-2 rounded-lg">Karma sözleşme: ilgili tipleri aşağıda doldurun.</div>
-                  <div><div className="text-sm font-medium text-gray-700 mb-3">Depolama Bileşeni</div><DepolamaDetay form={form} set={set} tenantId={tenantId} /></div>
-                  <div className="border-t border-gray-100 pt-4"><div className="text-sm font-medium text-gray-700 mb-3">Transport Bileşeni</div><TransportDetay form={form} set={set} /></div>
-                  <div className="border-t border-gray-100 pt-4"><div className="text-sm font-medium text-gray-700 mb-3">VAS Bileşeni</div><VasDetay form={form} set={set} tenantId={tenantId} /></div>
+                  <div className="text-xs text-gray-400 bg-gray-50 px-3 py-2 rounded-lg">Karma sözleşme: ilgili bileşenleri doldurun.</div>
+                  <div><div className="text-sm font-medium text-gray-700 mb-3">Depolama</div><DepolamaDetay form={form} set={set} tenantId={tenantId} /></div>
+                  <div className="border-t border-gray-100 pt-4"><div className="text-sm font-medium text-gray-700 mb-3">Transport</div><TransportDetay form={form} set={set} /></div>
+                  <div className="border-t border-gray-100 pt-4"><div className="text-sm font-medium text-gray-700 mb-3">VAS</div><VasDetay form={form} set={set} tenantId={tenantId} /></div>
                 </div>
               )}
             </div>
           )}
 
-          {/* ARTIŞ & ÜRÜN */}
           {aktifTab === 'artis' && (
             <div className="space-y-4">
               <div>
@@ -460,7 +513,6 @@ export default function SozlesmeModal({ sozlesme, musteriler, tenantId, onKaydet
                   <input type="checkbox" checked={form.artis_var} onChange={e => set('artis_var', e.target.checked)} className="rounded" />
                   <span className="text-sm font-medium text-gray-600">Artış Klözü Var</span>
                 </label>
-
                 {form.artis_var && (
                   <div className="bg-amber-50 rounded-lg p-4 space-y-3">
                     <div className="grid grid-cols-2 gap-3">
@@ -501,7 +553,6 @@ export default function SozlesmeModal({ sozlesme, musteriler, tenantId, onKaydet
                   </div>
                 )}
               </div>
-
               <div>
                 <label className="block text-xs font-medium text-gray-500 mb-1.5">Ürün Tipleri (çoklu)</label>
                 <div className="flex flex-wrap gap-1.5">
