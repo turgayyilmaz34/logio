@@ -133,6 +133,11 @@ export default function Dashboard() {
       bilgi: i.kalan < 0 ? 'Geçti!' : i.kalan === 0 ? 'Bugün!' : `${i.kalan} gün`
     }))
 
+  // --- Sözleşmesiz aktif projeler ---
+  const sozlesmesizProjeler = projeler
+    .filter(p => !p.sozlesme_id && ['teklif', 'sozlesme', 'operasyon'].includes(p.durum))
+    .map(p => ({ ad: p.ad || '—', bilgi: p.durum === 'operasyon' ? 'Operasyonda!' : p.durum }))
+
   // --- Proje & ihale pipeline ---
   const projeOzet = {
     teklif: projeler.filter(p => p.durum === 'teklif').length,
@@ -283,6 +288,17 @@ export default function Dashboard() {
                     <div className={`text-2xl font-semibold ${renk}`}>{sayi}</div>
                     <div className="text-xs text-gray-400 mt-1">{label}</div>
                   </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {sozlesmesizProjeler.length > 0 && (
+            <div className="bg-amber-50 border border-amber-200 rounded-xl px-5 py-3 mb-4 flex items-center gap-3 flex-wrap">
+              <span className="text-amber-700 font-medium text-sm">⚠️ {sozlesmesizProjeler.length} sözleşmesiz aktif proje</span>
+              <div className="flex flex-wrap gap-2">
+                {sozlesmesizProjeler.map((p, i) => (
+                  <span key={i} className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">{p.ad} — {p.bilgi}</span>
                 ))}
               </div>
             </div>
