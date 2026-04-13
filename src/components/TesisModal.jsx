@@ -1,4 +1,6 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { collection, getDocs, query, where } from 'firebase/firestore'
+import { db } from '../firebase'
 
 const TESIS_TIPI_PRIMARY = [
   'Depo (CEVA Operasyon)', 'Cep Depo / Geçici Depolama', 'Aktarma Merkezi / Cross-dock',
@@ -181,6 +183,16 @@ export default function TesisModal({ tesis, onKaydet, onKapat }) {
   const [aktifTab, setAktifTab] = useState('genel')
   const [yeniSecondaryRol, setYeniSecondaryRol] = useState('')
 
+  const [grupSirketleri, setGrupSirketleri] = useState([])
+
+  useEffect(() => {
+    const yukle = async () => {
+      const snap = await getDocs(collection(db, 'grup_sirketleri'))
+      setGrupSirketleri(snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => a.ad.localeCompare(b.ad)))
+    }
+    yukle()
+  }, [])
+
   const set = (key, val) => setForm(f => ({ ...f, [key]: val }))
   const setNested = (key, subkey, val) => setForm(f => ({ ...f, [key]: { ...f[key], [subkey]: val } }))
 
@@ -251,7 +263,18 @@ export default function TesisModal({ tesis, onKaydet, onKapat }) {
                     className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-blue-400" placeholder="İzmir" />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-500 mb-1">Tür</label>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">İşleten / İmzalayan Şirket</label>
+                <select value={form.isletici_sirket_id} onChange={e => set('isletici_sirket_id', e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:outline-none focus:border-blue-400">
+                  <option value="">Seçin (opsiyonel)...</option>
+                  {grupSirketleri.map(s => (
+                    <option key={s.id} value={s.id}>{s.ad}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">Tür</label>
                   <div className="flex gap-2">
                     {[['kiralik', 'Kiralık'], ['musteri_tesisi', 'Müşteri Tesisi']].map(([val, label]) => (
                       <button key={val} onClick={() => set('tur', val)}
