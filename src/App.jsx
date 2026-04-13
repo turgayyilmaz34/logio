@@ -1,9 +1,16 @@
-
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { useAuthState } from './hooks/useAuthState'
 import Login from './pages/Login'
 import Dashboard from './pages/Dashboard'
+import Tesisler from './pages/Tesisler'
 import Layout from './components/Layout'
+
+const Yapiyor = ({ sayfa }) => (
+  <div className="p-8">
+    <div className="text-xl font-semibold text-gray-800 mb-2">{sayfa}</div>
+    <div className="text-sm text-gray-400">Bu modül yakında hazır olacak.</div>
+  </div>
+)
 
 export default function App() {
   const { user, loading } = useAuthState()
@@ -23,6 +30,12 @@ export default function App() {
         <Route path="/login" element={!user ? <Login /> : <Navigate to="/" />} />
         <Route path="/" element={user ? <Layout /> : <Navigate to="/login" />}>
           <Route index element={<Dashboard />} />
+          <Route path="tesisler" element={<Tesisler />} />
+          <Route path="musteriler" element={<Yapiyor sayfa="Müşteriler" />} />
+          <Route path="sozlesmeler" element={<Yapiyor sayfa="Sözleşmeler" />} />
+          <Route path="projeler" element={<Yapiyor sayfa="Projeler" />} />
+          <Route path="ihaleler" element={<Yapiyor sayfa="İhaleler" />} />
+          <Route path="raporlar" element={<Yapiyor sayfa="Raporlar" />} />
         </Route>
       </Routes>
     </BrowserRouter>
