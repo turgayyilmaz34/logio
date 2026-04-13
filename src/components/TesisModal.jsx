@@ -237,6 +237,13 @@ export default function TesisModal({ tesis, onKaydet, onKapat }) {
                 <input value={form.ad} onChange={e => set('ad', e.target.value)}
                   className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-blue-400" placeholder="İzmir Depo A" />
               </div>
+
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">TUR Kodu — Tesis Kodu (opsiyonel)</label>
+                <input value={form.tur_kodu || ''} onChange={e => set('tur_kodu', e.target.value.toUpperCase())}
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-blue-400 font-mono"
+                  placeholder="IST-001, IZM-DEP-A..." />
+              </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-medium text-gray-500 mb-1">Şehir *</label>
