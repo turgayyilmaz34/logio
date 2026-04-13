@@ -1,16 +1,14 @@
-
 import { initializeApp } from 'firebase/app'
 import { getFirestore } from 'firebase/firestore'
 import { getAuth } from 'firebase/auth'
 
 const firebaseConfig = {
-  apiKey: "AIzaSyB82otnxaf4Zv4gJpoQjNTq2eJjdJVFgiQ",
-  authDomain: "logio-prod.firebaseapp.com",
-  projectId: "logio-prod",
-  storageBucket: "logio-prod.firebasestorage.app",
-  messagingSenderId: "293378908626",
-  appId: "1:293378908626:web:795e9be2ab7f4e500d280b",
-  measurementId: "G-7G0T8T999Z"
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID,
 }
 
 const app = initializeApp(firebaseConfig)
