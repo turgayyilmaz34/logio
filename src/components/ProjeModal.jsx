@@ -332,6 +332,13 @@ export default function ProjeModal({ proje, sozlesmeler, musteriler, tenantId, o
               </div>
 
               <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">BU Kodu (opsiyonel)</label>
+                <input value={form.bu_kodu || ''} onChange={e => set('bu_kodu', e.target.value.toUpperCase())}
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-blue-400 font-mono"
+                  placeholder="TR001, WH-IST-01..." />
+              </div>
+
+              <div>
                 <label className="block text-xs font-medium text-gray-500 mb-1">Bağlı Sözleşme</label>
                 <select value={form.sozlesme_id} onChange={e => set('sozlesme_id', e.target.value)}
                   className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:outline-none focus:border-blue-400">
