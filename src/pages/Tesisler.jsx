@@ -82,6 +82,7 @@ export default function Tesisler() {
                     <div className="flex items-center gap-2">
                       <span className="font-medium text-gray-800">{tesis.ad}</span>
                       <code className="text-xs text-gray-300 font-mono">{tesis.id.slice(0, 8)}…</code>
+                    {tesis.tur_kodu && <span className="text-xs bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded font-mono">{tesis.tur_kodu}</span>}
                     </div>
                     <div className="text-xs text-gray-400 mt-0.5">
                       {tesis.sehir}{tesis.adres ? ` — ${tesis.adres}` : ''}
