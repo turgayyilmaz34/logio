@@ -1,4 +1,3 @@
-
 import { useState } from 'react'
 
 const TESIS_TIPLERI = [
@@ -24,7 +23,6 @@ export default function TesisModal({ tesis, onKaydet, onKapat }) {
     tesis_tipi: tesis?.tesis_tipi || '',
     mulkiyet_statusu: tesis?.mulkiyet_statusu || '',
     operator_rolu: tesis?.operator_rolu || '',
-    toplam_m2: tesis?.toplam_m2 || '',
   })
 
   const set = (key, val) => setForm(f => ({ ...f, [key]: val }))
@@ -37,18 +35,36 @@ export default function TesisModal({ tesis, onKaydet, onKapat }) {
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-2xl w-full max-w-lg shadow-xl">
+
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-          <h2 className="font-semibold text-gray-800">
-            {tesis ? 'Tesis Düzenle' : 'Yeni Tesis'}
-          </h2>
+          <div>
+            <h2 className="font-semibold text-gray-800">
+              {tesis ? 'Tesis Düzenle' : 'Yeni Tesis'}
+            </h2>
+            {tesis?.id && (
+              <div className="flex items-center gap-1.5 mt-0.5">
+                <span className="text-xs text-gray-400">ID:</span>
+                <code className="text-xs text-gray-500 bg-gray-50 px-1.5 py-0.5 rounded font-mono">
+                  {tesis.id}
+                </code>
+              </div>
+            )}
+          </div>
           <button onClick={onKapat} className="text-gray-400 hover:text-gray-600 text-xl leading-none">×</button>
         </div>
 
-        {/* Form */}
-        <div className="px-6 py-5 space-y-4 max-h-[70vh] overflow-y-auto">
+        {/* Toplam m² bilgi notu */}
+        {!tesis && (
+          <div className="mx-6 mt-4 bg-blue-50 text-blue-700 text-xs px-3 py-2 rounded-lg">
+            Toplam m² bilgisi kat tanımlamalarından otomatik hesaplanır. Tesisi kaydettikten sonra kat ekleyebilirsiniz.
+          </div>
+        )}
 
+        {/* Form */}
+        <div className="px-6 py-5 space-y-4 max-h-[65vh] overflow-y-auto">
           <div className="grid grid-cols-2 gap-4">
+
             <div className="col-span-2">
               <label className="block text-xs font-medium text-gray-500 mb-1">Tesis Adı *</label>
               <input
@@ -70,27 +86,6 @@ export default function TesisModal({ tesis, onKaydet, onKapat }) {
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1">Toplam m²</label>
-              <input
-                type="number"
-                value={form.toplam_m2}
-                onChange={e => set('toplam_m2', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-blue-400"
-                placeholder="5000"
-              />
-            </div>
-
-            <div className="col-span-2">
-              <label className="block text-xs font-medium text-gray-500 mb-1">Adres</label>
-              <input
-                value={form.adres}
-                onChange={e => set('adres', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-blue-400"
-                placeholder="Mahalle, ilçe..."
-              />
-            </div>
-
-            <div>
               <label className="block text-xs font-medium text-gray-500 mb-1">Tür</label>
               <div className="flex gap-2">
                 {[['kiralik', 'Kiralık'], ['mulk', 'Mülk']].map(([val, label]) => (
@@ -107,6 +102,16 @@ export default function TesisModal({ tesis, onKaydet, onKapat }) {
                   </button>
                 ))}
               </div>
+            </div>
+
+            <div className="col-span-2">
+              <label className="block text-xs font-medium text-gray-500 mb-1">Adres</label>
+              <input
+                value={form.adres}
+                onChange={e => set('adres', e.target.value)}
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-blue-400"
+                placeholder="Mahalle, ilçe..."
+              />
             </div>
 
             <div>
@@ -133,7 +138,7 @@ export default function TesisModal({ tesis, onKaydet, onKapat }) {
               </select>
             </div>
 
-            <div>
+            <div className="col-span-2">
               <label className="block text-xs font-medium text-gray-500 mb-1">Operatör Rolü</label>
               <select
                 value={form.operator_rolu}
@@ -144,15 +149,13 @@ export default function TesisModal({ tesis, onKaydet, onKapat }) {
                 {OPERATOR_ROLLERI.map(t => <option key={t} value={t}>{t}</option>)}
               </select>
             </div>
+
           </div>
         </div>
 
         {/* Footer */}
         <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-100">
-          <button
-            onClick={onKapat}
-            className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-50 rounded-lg"
-          >
+          <button onClick={onKapat} className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-50 rounded-lg">
             İptal
           </button>
           <button
