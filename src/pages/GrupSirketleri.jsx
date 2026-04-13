@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react'
 import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where } from 'firebase/firestore'
 import { db, auth } from '../firebase'
@@ -158,18 +157,16 @@ export default function GrupSirketleri() {
                   className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-blue-400"
                   placeholder="CEVA Logistics Ltd. Şti." />
               </div>
-              {!form.parent_id && (
-                <div>
+              <div>
                   <label className="block text-xs font-medium text-gray-500 mb-1">Üst Şirket (opsiyonel)</label>
                   <select value={form.parent_id} onChange={e => set('parent_id', e.target.value)}
                     className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:outline-none focus:border-blue-400">
                     <option value="">Ana şirket olarak ekle</option>
-                    {sirketler.filter(s => !s.parent_id && s.id !== secili?.id).map(s => (
+                    {sirketler.filter(s => s.id !== secili?.id).map(s => (
                       <option key={s.id} value={s.id}>{s.ad}</option>
                     ))}
                   </select>
                 </div>
-              )}
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-medium text-gray-500 mb-1">Ülke</label>
