@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react'
 import { collection, getDocs, addDoc, deleteDoc, doc, query, where, updateDoc } from 'firebase/firestore'
 import { db } from '../firebase'
@@ -10,32 +9,42 @@ const ALAN_TIPLERI = [
 ]
 
 const DURUMLAR = [
-  ['teklif', 'Teklif'],
-  ['sozlesme', 'Sözleşme'],
-  ['operasyon', 'Operasyon'],
-  ['tamamlandi', 'Tamamlandı'],
-  ['iptal', 'İptal'],
+  ['teklif', 'Teklif'], ['sozlesme', 'Sözleşme'], ['operasyon', 'Operasyon'],
+  ['tamamlandi', 'Tamamlandı'], ['iptal', 'İptal'],
 ]
 
 function KatBaglantilari({ projeId, tenantId }) {
   const [baglantilar, setBaglantilar] = useState([])
-  const [katlar, setKatlar] = useState([])
+  const [tesisler, setTesisler] = useState([])
+  const [tumKatlar, setTumKatlar] = useState([])
+  const [seciliTesisId, setSeciliTesisId] = useState('')
   const [formAcik, setFormAcik] = useState(false)
   const [form, setForm] = useState({ kat_id: '', kullanilan_m2: '', kullanilan_asmakat_m2: '', baslangic: '', bitis: '' })
 
   const yukle = async () => {
-    const [bagSnap, katSnap] = await Promise.all([
+    const [bagSnap, katSnap, tesSnap] = await Promise.all([
       getDocs(query(collection(db, 'proje_kat_baginlantilari'),
         where('proje_id', '==', projeId), where('tenant_id', '==', tenantId))),
-      getDocs(query(collection(db, 'katlar'), where('tenant_id', '==', tenantId)))
+      getDocs(query(collection(db, 'katlar'), where('tenant_id', '==', tenantId))),
+      getDocs(query(collection(db, 'tesisler'), where('tenant_id', '==', tenantId)))
     ])
     setBaglantilar(bagSnap.docs.map(d => ({ id: d.id, ...d.data() })))
-    setKatlar(katSnap.docs.map(d => ({ id: d.id, ...d.data() })))
+    setTumKatlar(katSnap.docs.map(d => ({ id: d.id, ...d.data() })))
+    setTesisler(tesSnap.docs.map(d => ({ id: d.id, ...d.data() })))
   }
 
   useEffect(() => { if (projeId) yukle() }, [projeId])
 
-  const katAd = (id) => katlar.find(k => k.id === id)?.kat_adi || id
+  const katAd = (id) => {
+    const kat = tumKatlar.find(k => k.id === id)
+    if (!kat) return id
+    const tesis = tesisler.find(t => t.id === kat.tesis_id)
+    return `${tesis?.ad || ''} / ${kat.kat_adi}`
+  }
+
+  const filtreliKatlar = seciliTesisId
+    ? tumKatlar.filter(k => k.tesis_id === seciliTesisId)
+    : []
 
   const ekle = async () => {
     if (!form.kat_id || !form.kullanilan_m2) return alert('Kat ve m² zorunludur.')
@@ -45,6 +54,7 @@ function KatBaglantilari({ projeId, tenantId }) {
       kullanilan_asmakat_m2: Number(form.kullanilan_asmakat_m2) || 0,
     })
     setForm({ kat_id: '', kullanilan_m2: '', kullanilan_asmakat_m2: '', baslangic: '', bitis: '' })
+    setSeciliTesisId('')
     setFormAcik(false)
     yukle()
   }
@@ -54,14 +64,16 @@ function KatBaglantilari({ projeId, tenantId }) {
     yukle()
   }
 
-  const toplamM2 = baglantilar.reduce((acc, b) => acc + (b.kullanilan_m2 || 0) + (b.kullanilan_asmakat_m2 || 0), 0)
+  const toplamM2 = baglantilar.reduce((acc, b) => acc + (b.kullanilan_m2 || 0), 0)
+  const toplamAsmakat = baglantilar.reduce((acc, b) => acc + (b.kullanilan_asmakat_m2 || 0), 0)
 
   return (
     <div>
       <div className="flex items-center justify-between mb-2">
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 flex-wrap">
           <div className="text-xs font-medium text-gray-500 uppercase tracking-wide">Kat Bağlantıları</div>
-          {toplamM2 > 0 && <span className="text-xs text-blue-700 font-medium">Toplam: {toplamM2.toLocaleString('tr-TR')} m²</span>}
+          {toplamM2 > 0 && <span className="text-xs text-blue-700 font-medium">Doluluk: {toplamM2.toLocaleString('tr-TR')} m²</span>}
+          {toplamAsmakat > 0 && <span className="text-xs text-orange-500 font-medium">+ {toplamAsmakat.toLocaleString('tr-TR')} m² asmakat (bonus)</span>}
         </div>
         <button onClick={() => setFormAcik(!formAcik)}
           className="text-xs px-2.5 py-1 border border-gray-200 rounded-lg text-gray-500 hover:bg-gray-50">
@@ -74,7 +86,7 @@ function KatBaglantilari({ projeId, tenantId }) {
           <div className="flex items-center gap-3">
             <span className="font-medium text-gray-700">{katAd(b.kat_id)}</span>
             <span className="text-gray-500">{b.kullanilan_m2?.toLocaleString()} m²</span>
-            {b.kullanilan_asmakat_m2 > 0 && <span className="text-orange-600">+{b.kullanilan_asmakat_m2} m² asmakat</span>}
+            {b.kullanilan_asmakat_m2 > 0 && <span className="text-orange-500">+{b.kullanilan_asmakat_m2} m² asmakat (bonus)</span>}
             {b.baslangic && <span className="text-gray-400">{b.baslangic} → {b.bitis}</span>}
           </div>
           <button onClick={() => sil(b.id)} className="text-red-400 hover:text-red-600">Sil</button>
@@ -85,38 +97,58 @@ function KatBaglantilari({ projeId, tenantId }) {
         <div className="border border-blue-200 rounded-lg p-3 space-y-2">
           <div className="grid grid-cols-2 gap-2">
             <div className="col-span-2">
-              <label className="block text-xs text-gray-500 mb-1">Kat *</label>
-              <select value={form.kat_id} onChange={e => setForm(f => ({ ...f, kat_id: e.target.value }))}
+              <label className="block text-xs text-gray-500 mb-1">Tesis *</label>
+              <select value={seciliTesisId}
+                onChange={e => { setSeciliTesisId(e.target.value); setForm(f => ({ ...f, kat_id: '' })) }}
                 className="w-full px-2 py-1.5 border border-gray-200 rounded-lg text-xs bg-white focus:outline-none">
-                <option value="">Seçin...</option>
-                {katlar.map(k => (
-                  <option key={k.id} value={k.id}>{k.kat_adi} — Kullanılabilir: {k.kullanilabilir_m2?.toLocaleString()} m²</option>
-                ))}
+                <option value="">Önce tesis seçin...</option>
+                {tesisler.map(t => <option key={t.id} value={t.id}>{t.ad} — {t.sehir}</option>)}
               </select>
             </div>
+            {seciliTesisId && (
+              <div className="col-span-2">
+                <label className="block text-xs text-gray-500 mb-1">Kat *</label>
+                <select value={form.kat_id} onChange={e => setForm(f => ({ ...f, kat_id: e.target.value }))}
+                  className="w-full px-2 py-1.5 border border-gray-200 rounded-lg text-xs bg-white focus:outline-none">
+                  <option value="">Kat seçin...</option>
+                  {filtreliKatlar.map(k => (
+                    <option key={k.id} value={k.id}>
+                      {k.kat_adi} — {(k.kullanilabilir_m2 || 0).toLocaleString()} m²
+                      {k.asmakat_var && k.asmakat_m2 > 0 ? ` + ${k.asmakat_m2} m² asmakat` : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
             <div>
               <label className="block text-xs text-gray-500 mb-1">Kullanılan m² *</label>
-              <input type="number" value={form.kullanilan_m2} onChange={e => setForm(f => ({ ...f, kullanilan_m2: e.target.value }))}
+              <input type="number" value={form.kullanilan_m2}
+                onChange={e => setForm(f => ({ ...f, kullanilan_m2: e.target.value }))}
                 className="w-full px-2 py-1.5 border border-gray-200 rounded-lg text-xs focus:outline-none focus:border-blue-400" />
             </div>
             <div>
-              <label className="block text-xs text-gray-500 mb-1">Asmakat m²</label>
-              <input type="number" value={form.kullanilan_asmakat_m2} onChange={e => setForm(f => ({ ...f, kullanilan_asmakat_m2: e.target.value }))}
-                className="w-full px-2 py-1.5 border border-gray-200 rounded-lg text-xs focus:outline-none focus:border-blue-400" />
+              <label className="block text-xs text-gray-500 mb-1">Asmakat m² (bonus gelir)</label>
+              <input type="number" value={form.kullanilan_asmakat_m2}
+                onChange={e => setForm(f => ({ ...f, kullanilan_asmakat_m2: e.target.value }))}
+                className="w-full px-2 py-1.5 border border-gray-200 rounded-lg text-xs focus:outline-none focus:border-blue-400"
+                placeholder="Doluluk dışı" />
             </div>
             <div>
               <label className="block text-xs text-gray-500 mb-1">Başlangıç</label>
-              <input type="date" value={form.baslangic} onChange={e => setForm(f => ({ ...f, baslangic: e.target.value }))}
+              <input type="date" value={form.baslangic}
+                onChange={e => setForm(f => ({ ...f, baslangic: e.target.value }))}
                 className="w-full px-2 py-1.5 border border-gray-200 rounded-lg text-xs focus:outline-none" />
             </div>
             <div>
               <label className="block text-xs text-gray-500 mb-1">Bitiş</label>
-              <input type="date" value={form.bitis} onChange={e => setForm(f => ({ ...f, bitis: e.target.value }))}
+              <input type="date" value={form.bitis}
+                onChange={e => setForm(f => ({ ...f, bitis: e.target.value }))}
                 className="w-full px-2 py-1.5 border border-gray-200 rounded-lg text-xs focus:outline-none" />
             </div>
           </div>
           <div className="flex justify-end gap-2">
-            <button onClick={() => setFormAcik(false)} className="text-xs text-gray-500 px-3 py-1 hover:bg-gray-50 rounded-lg">İptal</button>
+            <button onClick={() => { setFormAcik(false); setSeciliTesisId('') }}
+              className="text-xs text-gray-500 px-3 py-1 hover:bg-gray-50 rounded-lg">İptal</button>
             <button onClick={ekle} className="text-xs bg-blue-700 text-white px-3 py-1 rounded-lg hover:bg-blue-800">Kaydet</button>
           </div>
         </div>
@@ -191,12 +223,12 @@ function PersonelPanel({ projeId, tenantId }) {
                 placeholder="2026-04" />
             </div>
             <div>
-              <label className="block text-xs text-gray-500 mb-1">Kişi Sayısı</label>
+              <label className="block text-xs text-gray-500 mb-1">Kişi</label>
               <input type="number" value={form.kisi_sayisi} onChange={e => setForm(f => ({ ...f, kisi_sayisi: e.target.value }))}
                 className="w-full px-2 py-1.5 border border-gray-200 rounded-lg text-xs focus:outline-none" />
             </div>
             <div>
-              <label className="block text-xs text-gray-500 mb-1">Toplam Saat</label>
+              <label className="block text-xs text-gray-500 mb-1">Saat</label>
               <input type="number" value={form.toplam_saat} onChange={e => setForm(f => ({ ...f, toplam_saat: e.target.value }))}
                 className="w-full px-2 py-1.5 border border-gray-200 rounded-lg text-xs focus:outline-none" />
             </div>
@@ -211,7 +243,7 @@ function PersonelPanel({ projeId, tenantId }) {
                 className="w-full px-2 py-1.5 border border-gray-200 rounded-lg text-xs focus:outline-none" />
             </div>
             <div>
-              <label className="block text-xs text-gray-500 mb-1">Kur (USD/TRY)</label>
+              <label className="block text-xs text-gray-500 mb-1">Kur USD/TRY</label>
               <input type="number" step="0.01" value={form.kur} onChange={e => setForm(f => ({ ...f, kur: e.target.value }))}
                 className="w-full px-2 py-1.5 border border-gray-200 rounded-lg text-xs focus:outline-none" />
             </div>
