@@ -2,11 +2,16 @@ import { useState, useEffect } from 'react'
 import { collection, getDocs, query, where } from 'firebase/firestore'
 import { db, auth } from '../firebase'
 
-function MetrikKart({ label, value, sub, renk }) {
+function MetrikKart({ label, value, sub, renk, badge }) {
   return (
     <div className="bg-white rounded-xl border border-gray-100 p-5">
       <div className="text-xs text-gray-400 uppercase tracking-wide mb-2">{label}</div>
       <div className={`text-2xl font-semibold ${renk || 'text-gray-800'}`}>{value}</div>
+      {badge && (
+        <div className={`inline-block mt-1.5 text-xs px-2 py-0.5 rounded-full font-medium ${badge.renk}`}>
+          {badge.text}
+        </div>
+      )}
       {sub && <div className="text-xs text-gray-400 mt-1">{sub}</div>}
     </div>
   )
@@ -34,7 +39,8 @@ export default function Dashboard() {
   const [yukleniyor, setYukleniyor] = useState(true)
   const [veri, setVeri] = useState({
     tesisler: [], katlar: [], sozlesmeler: [], projeler: [],
-    ihaleler: [], musteriler: [], malSahibiSozlesmeleri: []
+    ihaleler: [], musteriler: [], malSahibiSozlesmeleri: [],
+    projeBaginlantilari: []
   })
 
   const tenantId = auth.currentUser?.email?.split('@')[1] || 'default'
@@ -42,10 +48,10 @@ export default function Dashboard() {
   useEffect(() => {
     const yukle = async () => {
       const q = (col) => getDocs(query(collection(db, col), where('tenant_id', '==', tenantId)))
-      const [t, k, s, p, i, m, ms] = await Promise.all([
+      const [t, k, s, p, i, m, ms, pb] = await Promise.all([
         q('tesisler'), q('katlar'), q('sozlesmeler'),
         q('projeler'), q('ihaleler'), q('musteriler'),
-        q('mal_sahibi_sozlesmeleri')
+        q('mal_sahibi_sozlesmeleri'), q('proje_kat_baginlantilari')
       ])
       setVeri({
         tesisler: t.docs.map(d => ({ id: d.id, ...d.data() })),
@@ -55,6 +61,7 @@ export default function Dashboard() {
         ihaleler: i.docs.map(d => ({ id: d.id, ...d.data() })),
         musteriler: m.docs.map(d => ({ id: d.id, ...d.data() })),
         malSahibiSozlesmeleri: ms.docs.map(d => ({ id: d.id, ...d.data() })),
+        projeBaginlantilari: pb.docs.map(d => ({ id: d.id, ...d.data() })),
       })
       setYukleniyor(false)
     }
@@ -65,16 +72,34 @@ export default function Dashboard() {
     <div className="p-8 text-sm text-gray-400">Yükleniyor...</div>
   )
 
-  const { tesisler, katlar, sozlesmeler, projeler, ihaleler, musteriler, malSahibiSozlesmeleri } = veri
+  const { tesisler, katlar, sozlesmeler, projeler, ihaleler, musteriler, malSahibiSozlesmeleri, projeBaginlantilari } = veri
 
   // --- Kapasite hesapları ---
-  const toplamKullanilabilirM2 = katlar.reduce((acc, k) => acc + (k.kullanilabilir_m2 || 0) + (k.asmakat_var ? k.asmakat_m2 || 0 : 0), 0)
+  // Toplam kullanılabilir (asmakat hariç — asmakat bonus)
+  const toplamKullanilabilirM2 = katlar.reduce((acc, k) => acc + (k.kullanilabilir_m2 || 0), 0)
 
-  // Aktif projelerin bağlantılarını almak için proje_kat_baginlantilari lazım
-  // Şimdilik basit: aktif projelerin toplam m2'sini projelerden alamayız direkt
-  // Dashboard'da tesisler ve katlar özeti gösterelim
+  // Aktif projelerin kullandığı m² (asmakat hariç, sadece doluluk)
+  const aktifProjeler = projeler.filter(p => p.durum === 'operasyon' || p.durum === 'sozlesme')
+  const aktifProjeIds = new Set(aktifProjeler.map(p => p.id))
+  const kullanildanM2 = projeBaginlantilari
+    .filter(b => aktifProjeIds.has(b.proje_id))
+    .reduce((acc, b) => acc + (b.kullanilan_m2 || 0), 0)
 
-  // --- Sözleşme bitiş uyarıları (90 gün içinde) ---
+  const bosM2 = Math.max(0, toplamKullanilabilirM2 - kullanildanM2)
+  const doluYuzde = toplamKullanilabilirM2 > 0
+    ? Math.round((kullanildanM2 / toplamKullanilabilirM2) * 100)
+    : 0
+  const bosYuzde = 100 - doluYuzde
+
+  const doluluRenk = doluYuzde >= 80 ? 'text-green-600'
+    : doluYuzde >= 50 ? 'text-amber-600'
+    : 'text-red-500'
+
+  const bosBadgeRenk = bosYuzde > 30 ? 'bg-red-50 text-red-600'
+    : bosYuzde > 10 ? 'bg-amber-50 text-amber-700'
+    : 'bg-green-50 text-green-700'
+
+  // --- Sözleşme bitiş uyarıları ---
   const bugun = new Date()
   const gunKaldi = (tarih) => tarih ? Math.ceil((new Date(tarih) - bugun) / (1000 * 60 * 60 * 24)) : null
 
@@ -88,7 +113,6 @@ export default function Dashboard() {
       bilgi: s.kalan < 0 ? `${Math.abs(s.kalan)} gün geçti!` : `${s.kalan} gün kaldı`
     }))
 
-  // --- Mal sahibi sözleşme uyarıları ---
   const malSahibiUyarilari = malSahibiSozlesmeleri
     .filter(s => s.bitis)
     .map(s => ({ ...s, kalan: gunKaldi(s.bitis) }))
@@ -99,7 +123,6 @@ export default function Dashboard() {
       bilgi: s.kalan < 0 ? `${Math.abs(s.kalan)} gün geçti!` : `${s.kalan} gün kaldı`
     }))
 
-  // --- İhale son başvuru uyarıları ---
   const ihaleUyarilari = ihaleler
     .filter(i => ['hazirlik', 'gonderildi', 'bekleniyor'].includes(i.durum) && i.son_basvuru)
     .map(i => ({ ...i, kalan: gunKaldi(i.son_basvuru) }))
@@ -110,7 +133,7 @@ export default function Dashboard() {
       bilgi: i.kalan < 0 ? 'Geçti!' : i.kalan === 0 ? 'Bugün!' : `${i.kalan} gün`
     }))
 
-  // --- Proje pipeline ---
+  // --- Proje & ihale pipeline ---
   const projeOzet = {
     teklif: projeler.filter(p => p.durum === 'teklif').length,
     sozlesme: projeler.filter(p => p.durum === 'sozlesme').length,
@@ -118,7 +141,6 @@ export default function Dashboard() {
     tamamlandi: projeler.filter(p => p.durum === 'tamamlandi').length,
   }
 
-  // --- İhale pipeline ---
   const ihaleOzet = {
     aktif: ihaleler.filter(i => ['hazirlik', 'gonderildi', 'bekleniyor'].includes(i.durum)).length,
     kazanildi: ihaleler.filter(i => i.durum === 'kazanildi').length,
@@ -128,7 +150,6 @@ export default function Dashboard() {
     ? Math.round(ihaleOzet.kazanildi / (ihaleOzet.kazanildi + ihaleOzet.kaybedildi) * 100) : null
 
   const tarih = new Date().toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' })
-
   const hicVeriYok = tesisler.length === 0 && musteriler.length === 0 && sozlesmeler.length === 0
 
   return (
@@ -153,19 +174,21 @@ export default function Dashboard() {
           {/* Özet metrikler */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
             <MetrikKart
-              label="Tesisler"
-              value={tesisler.length}
-              sub={`${katlar.length} kat tanımlı`}
-            />
-            <MetrikKart
-              label="Toplam Kullanılabilir Alan"
+              label="Toplam Alan"
               value={toplamKullanilabilirM2 > 0 ? `${toplamKullanilabilirM2.toLocaleString('tr-TR')} m²` : '—'}
-              sub="Tüm katların toplamı"
+              sub={`${katlar.length} kat · ${tesisler.length} tesis`}
             />
             <MetrikKart
-              label="Aktif Müşteriler"
-              value={musteriler.length}
-              sub={`${sozlesmeler.filter(s => s.durum === 'aktif').length} aktif sözleşme`}
+              label="Dolu Alan"
+              value={kullanildanM2 > 0 ? `${kullanildanM2.toLocaleString('tr-TR')} m²` : '—'}
+              sub={toplamKullanilabilirM2 > 0 ? `%${doluYuzde} doluluk` : '—'}
+              renk={doluluRenk}
+            />
+            <MetrikKart
+              label="Boş Alan"
+              value={toplamKullanilabilirM2 > 0 ? `${bosM2.toLocaleString('tr-TR')} m²` : '—'}
+              sub={toplamKullanilabilirM2 > 0 ? `%${bosYuzde} boşluk` : '—'}
+              badge={toplamKullanilabilirM2 > 0 ? { text: bosM2 > 0 ? 'Maliyet yiyor' : 'Tam dolu', renk: bosBadgeRenk } : null}
             />
             <MetrikKart
               label="Aktif İhaleler"
@@ -174,6 +197,76 @@ export default function Dashboard() {
               renk={ihaleOzet.aktif > 0 ? 'text-amber-600' : 'text-gray-800'}
             />
           </div>
+
+          {/* Doluluk bar */}
+          {toplamKullanilabilirM2 > 0 && (
+            <div className="bg-white rounded-xl border border-gray-100 p-5 mb-6">
+              <div className="flex items-center justify-between mb-2">
+                <div className="text-xs font-medium text-gray-400 uppercase tracking-wide">Kapasite Durumu</div>
+                <div className="text-xs text-gray-500">
+                  <span className="text-gray-700 font-medium">{kullanildanM2.toLocaleString('tr-TR')} m²</span> dolu /
+                  <span className={`font-medium ml-1 ${bosM2 > 0 ? 'text-red-500' : 'text-green-600'}`}>{bosM2.toLocaleString('tr-TR')} m²</span> boş
+                </div>
+              </div>
+              <div className="w-full bg-gray-100 rounded-full h-3">
+                <div
+                  className={`h-3 rounded-full transition-all ${doluYuzde >= 80 ? 'bg-green-500' : doluYuzde >= 50 ? 'bg-amber-500' : 'bg-red-400'}`}
+                  style={{ width: `${doluYuzde}%` }}
+                />
+              </div>
+              <div className="flex justify-between text-xs text-gray-400 mt-1">
+                <span>0%</span>
+                <span className={`font-medium ${doluluRenk}`}>%{doluYuzde} dolu</span>
+                <span>100%</span>
+              </div>
+            </div>
+          )}
+
+          {/* Tesis bazında doluluk */}
+          {tesisler.length > 0 && (
+            <div className="bg-white rounded-xl border border-gray-100 p-5 mb-6">
+              <div className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-3">Tesis Bazında</div>
+              <div className="space-y-3">
+                {tesisler.map(t => {
+                  const tesisKatlari = katlar.filter(k => k.tesis_id === t.id)
+                  const tesisToplamM2 = tesisKatlari.reduce((acc, k) => acc + (k.kullanilabilir_m2 || 0), 0)
+                  const tesisKatIds = new Set(tesisKatlari.map(k => k.id))
+                  const tesisKullanilan = projeBaginlantilari
+                    .filter(b => aktifProjeIds.has(b.proje_id) && tesisKatIds.has(b.kat_id))
+                    .reduce((acc, b) => acc + (b.kullanilan_m2 || 0), 0)
+                  const tesisBos = Math.max(0, tesisToplamM2 - tesisKullanilan)
+                  const tesisDolu = tesisToplamM2 > 0 ? Math.round((tesisKullanilan / tesisToplamM2) * 100) : 0
+
+                  return (
+                    <div key={t.id}>
+                      <div className="flex items-center justify-between mb-1">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-medium text-gray-700">{t.ad}</span>
+                          <span className="text-xs text-gray-400">{t.sehir}</span>
+                          {t.tur_kodu && <span className="text-xs font-mono bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded">{t.tur_kodu}</span>}
+                        </div>
+                        <div className="text-xs text-gray-500 text-right">
+                          <span className="font-medium text-gray-700">{tesisKullanilan.toLocaleString('tr-TR')} m²</span>
+                          {' '} dolu ·
+                          <span className={`font-medium ml-1 ${tesisBos > 0 ? 'text-red-500' : 'text-green-600'}`}>
+                            {tesisBos.toLocaleString('tr-TR')} m²
+                          </span>
+                          {' '} boş
+                        </div>
+                      </div>
+                      <div className="w-full bg-gray-100 rounded-full h-2">
+                        <div
+                          className={`h-2 rounded-full ${tesisDolu >= 80 ? 'bg-green-500' : tesisDolu >= 50 ? 'bg-amber-500' : tesisToplamM2 === 0 ? 'bg-gray-200' : 'bg-red-400'}`}
+                          style={{ width: `${tesisDolu}%` }}
+                        />
+                      </div>
+                      <div className="text-xs text-gray-400 mt-0.5">%{tesisDolu} dolu · {tesisKatlari.length} kat · {tesisToplamM2.toLocaleString('tr-TR')} m² toplam</div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
 
           {/* Proje pipeline */}
           {projeler.length > 0 && (
@@ -195,40 +288,10 @@ export default function Dashboard() {
             </div>
           )}
 
-          {/* Tesis özeti */}
-          {tesisler.length > 0 && (
-            <div className="bg-white rounded-xl border border-gray-100 p-5 mb-6">
-              <div className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-3">Tesisler</div>
-              <div className="space-y-2">
-                {tesisler.map(t => {
-                  const tesisKatlari = katlar.filter(k => k.tesis_id === t.id)
-                  const toplamM2 = tesisKatlari.reduce((acc, k) => acc + (k.kullanilabilir_m2 || 0), 0)
-                  return (
-                    <div key={t.id} className="flex items-center justify-between py-2 border-b border-gray-50 last:border-0">
-                      <div>
-                        <span className="text-sm font-medium text-gray-700">{t.ad}</span>
-                        <span className="text-xs text-gray-400 ml-2">{t.sehir}</span>
-                        {t.tesis_tipi_primary && (
-                          <span className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full ml-2">{t.tesis_tipi_primary}</span>
-                        )}
-                      </div>
-                      <div className="text-right">
-                        <div className="text-sm font-medium text-gray-700">
-                          {toplamM2 > 0 ? `${toplamM2.toLocaleString('tr-TR')} m²` : '—'}
-                        </div>
-                        <div className="text-xs text-gray-400">{tesisKatlari.length} kat</div>
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            </div>
-          )}
-
           {/* Uyarılar */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <UyariKart
-              baslik="⚠️ Sözleşme Bitiş Uyarısı"
+              baslik="⚠️ Sözleşme Bitiş"
               items={sozlesmeUyarilari}
               renk="border-amber-200 bg-amber-50 text-amber-800"
             />
