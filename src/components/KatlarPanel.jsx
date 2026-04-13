@@ -110,7 +110,10 @@ export default function KatlarPanel({ tesisId, tenantId }) {
               <div className="px-4 py-3">
                 <div className="flex items-center justify-between">
                   <div>
-                    <div className="text-sm font-medium text-gray-700">{kat.kat_adi}</div>
+                    <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium text-gray-700">{kat.kat_adi}</span>
+                    {kat.tur_kodu && <span className="text-xs bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded font-mono">{kat.tur_kodu}</span>}
+                    </div>
                     <div className="flex items-center gap-3 mt-1 flex-wrap">
                       <span className="text-xs text-gray-400">
                         Sözleşme: <span className="text-gray-600">{(kat.sozlesme_m2 || 0).toLocaleString('tr-TR')} m²</span>
@@ -169,6 +172,12 @@ export default function KatlarPanel({ tesisId, tenantId }) {
               <input value={form.kat_adi} onChange={e => set('kat_adi', e.target.value)}
                 className="w-full px-3 py-1.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-blue-400"
                 placeholder="Zemin Kat, 1. Kat..." />
+            </div>
+            <div>
+              <label className="block text-xs text-gray-500 mb-1">TUR Kodu — Kat Kodu (opsiyonel)</label>
+              <input value={form.tur_kodu || ''} onChange={e => set('tur_kodu', e.target.value.toUpperCase())}
+                className="w-full px-3 py-1.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-blue-400 font-mono"
+                placeholder="IST-001-Z, IST-001-1..." />
             </div>
             <div>
               <label className="block text-xs text-gray-500 mb-1">Sözleşme m²</label>
