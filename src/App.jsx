@@ -6,6 +6,7 @@ import Tesisler from './pages/Tesisler'
 import Musteriler from './pages/Musteriler'
 import Sozlesmeler from './pages/Sozlesmeler'
 import Projeler from './pages/Projeler'
+import Ihaleler from './pages/Ihaleler'
 import Layout from './components/Layout'
 
 const Yapiyor = ({ sayfa }) => (
@@ -37,7 +38,7 @@ export default function App() {
           <Route path="musteriler" element={<Musteriler />} />
           <Route path="sozlesmeler" element={<Sozlesmeler />} />
           <Route path="projeler" element={<Projeler />} />
-          <Route path="ihaleler" element={<Yapiyor sayfa="İhaleler" />} />
+          <Route path="ihaleler" element={<Ihaleler />} />
           <Route path="raporlar" element={<Yapiyor sayfa="Raporlar" />} />
         </Route>
       </Routes>
