@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react'
 import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where } from 'firebase/firestore'
 import { db, auth } from '../firebase'
@@ -139,6 +138,7 @@ export default function Projeler() {
                   <div className="flex items-center gap-2">
                     <span className="font-medium text-gray-800 text-sm">{p.ad || '—'}</span>
                     <code className="text-xs text-gray-300 font-mono">{p.id.slice(0, 8)}…</code>
+                    {p.bu_kodu && <span className="text-xs bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded font-mono">{p.bu_kodu}</span>}
                   </div>
                   <div className="flex items-center gap-3 mt-1 text-xs text-gray-400">
                     <span>{musteriAd(p.sozlesme_id)}</span>
