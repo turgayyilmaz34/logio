@@ -27,6 +27,7 @@ const { rol } = useRole()
   const [modalAcik, setModalAcik] = useState(false)
   const [secili, setSecili] = useState(null)
   const [filtre, setFiltre] = useState('hepsi')
+  const [musteriFiltre, setMusteriFiltre] = useState('')
   const [arama, setArama] = useState('')
 
   const tenantId = auth.currentUser?.email?.split('@')[1] || 'default'
@@ -73,9 +74,13 @@ const { rol } = useRole()
 
   const filtreli = projeler
     .filter(p => {
-      // Operasyon rolü sadece kendi projelerini görür
       if (isOperasyon(rol) && p.sorumlu_kullanici_id !== auth.currentUser?.uid) return false
-      return filtre === 'hepsi' || p.durum === filtre
+      if (filtre !== 'hepsi' && p.durum !== filtre) return false
+      if (musteriFiltre) {
+        const soz = sozlesmeler.find(s => s.id === p.sozlesme_id)
+        if (soz?.musteri_id !== musteriFiltre) return false
+      }
+      return true
     })
     .filter(p =>
       p.ad?.toLowerCase().includes(arama.toLowerCase()) ||
