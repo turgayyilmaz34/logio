@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import ArtisLogu from './ArtisLogu'
 import { collection, getDocs, query, where } from 'firebase/firestore'
 import { db } from '../firebase'
 
@@ -433,6 +434,7 @@ export default function SozlesmeModal({ sozlesme, musteriler, tenantId, onKaydet
 
   const tabs = [
     { id: 'genel', label: 'Genel' },
+    ...(sozlesme ? [{ id: 'artis_log', label: 'Artış Logu' }] : []),
     { id: 'detay', label: form.tip === 'depolama' ? 'Depolama' : form.tip === 'transport' ? 'Transport' : form.tip === 'vas' ? 'VAS' : 'Detay' },
     { id: 'artis', label: 'Artış & Ürün' },
   ]
@@ -581,6 +583,14 @@ export default function SozlesmeModal({ sozlesme, musteriler, tenantId, onKaydet
                 </div>
               )}
             </div>
+          )}
+
+          {aktifTab === 'artis_log' && sozlesme && (
+            <ArtisLogu
+              sozlesmeId={sozlesme.id}
+              tenantId={tenantId}
+              paraBirimi={form.para_birimi}
+            />
           )}
 
           {aktifTab === 'artis' && (
