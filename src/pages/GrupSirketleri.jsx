@@ -4,7 +4,8 @@ import { db, auth } from '../firebase'
 import { useRole, canDelete } from '../hooks/useRole'
 
 export default function GrupSirketleri() {
-  const [sirketler, setSirketler] = useState([])
+const { rol } = useRole()
+    const [sirketler, setSirketler] = useState([])
   const [loading, setLoading] = useState(true)
   const [formAcik, setFormAcik] = useState(false)
   const [secili, setSecili] = useState(null)
