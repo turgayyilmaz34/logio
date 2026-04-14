@@ -19,7 +19,8 @@ const DURUM_LABEL = {
 }
 
 export default function Projeler() {
-  const [projeler, setProjeler] = useState([])
+const { rol } = useRole()
+    const [projeler, setProjeler] = useState([])
   const [sozlesmeler, setSozlesmeler] = useState([])
   const [musteriler, setMusteriler] = useState([])
   const [loading, setLoading] = useState(true)
