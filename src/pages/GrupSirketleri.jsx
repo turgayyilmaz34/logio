@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where } from 'firebase/firestore'
 import { db, auth } from '../firebase'
+import { useRole, canDelete } from '../hooks/useRole'
 
 export default function GrupSirketleri() {
   const [sirketler, setSirketler] = useState([])
@@ -91,10 +92,12 @@ export default function GrupSirketleri() {
             className="text-xs px-3 py-1.5 border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-50">
             Düzenle
           </button>
-          <button onClick={() => sil(sirket.id)}
+          {canDelete(rol) && (
+              <button onClick={() => sil(sirket.id)}
             className="text-xs px-3 py-1.5 border border-red-100 rounded-lg text-red-500 hover:bg-red-50">
             Sil
           </button>
+              )}
         </div>
       </div>
       {altSirketler(sirket.id).map(alt => (
