@@ -27,7 +27,8 @@ function gunKaldi(tarih) {
 }
 
 export default function Ihaleler() {
-  const [ihaleler, setIhaleler] = useState([])
+const { rol } = useRole()
+    const [ihaleler, setIhaleler] = useState([])
   const [musteriler, setMusteriler] = useState([])
   const [kullanicilar, setKullanicilar] = useState([])
   const [loading, setLoading] = useState(true)
