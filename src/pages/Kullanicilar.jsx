@@ -1,6 +1,5 @@
-
 import { useState, useEffect } from 'react'
-import { collection, getDocs, doc, setDoc, updateDoc, query, where } from 'firebase/firestore'
+import { collection, getDocs, doc, setDoc, updateDoc, deleteDoc, query, where } from 'firebase/firestore'
 import { db, auth } from '../firebase'
 import { useRole, canManageUsers } from '../hooks/useRole'
 
@@ -64,6 +63,13 @@ export default function Kullanicilar() {
 
   const aktifToggle = async (id, mevcut) => {
     await updateDoc(doc(db, 'kullanicilar', id), { aktif: !mevcut })
+    yukle()
+  }
+
+  const kullaniciyiSil = async (id, ad) => {
+    if (id === auth.currentUser?.uid) return alert('Kendi hesabınızı silemezsiniz.')
+    if (!window.confirm(`"${ad}" kullanıcısını silmek istediğinize emin misiniz?\nBu işlem geri alınamaz.`)) return
+    await deleteDoc(doc(db, 'kullanicilar', id))
     yukle()
   }
 
@@ -138,6 +144,11 @@ export default function Kullanicilar() {
                     <button onClick={() => duzenle(k)} className="text-xs px-3 py-1.5 border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-50">
                       Düzenle
                     </button>
+                    {k.id !== auth.currentUser?.uid && (
+                      <button onClick={() => kullaniciyiSil(k.id, k.ad)} className="text-xs px-3 py-1.5 border border-red-100 rounded-lg text-red-500 hover:bg-red-50">
+                        Sil
+                      </button>
+                    )}
                   </td>
                 </tr>
               ))}
