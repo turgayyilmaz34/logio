@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { exportToExcel } from '../utils/exportExcel'
+import { exportMultiSheet } from '../utils/exportExcel'
 import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where } from 'firebase/firestore'
 import { db, auth } from '../firebase'
 import ProjeModal from '../components/ProjeModal'
@@ -77,19 +77,81 @@ export default function Projeler() {
     )
 
 
-  const handleExport = () => {
-    const data = projeler.map(p => ({
+  const handleExport = async () => {
+    const { getDocs, collection, query, where } = await import('firebase/firestore')
+    const { db } = await import('../firebase')
+    const tenantId = auth.currentUser?.email?.split('@')[1] || 'default'
+
+    const [bagSnap, perSnap, katSnap, tesSnap] = await Promise.all([
+      getDocs(query(collection(db, 'proje_kat_baginlantilari'), where('tenant_id', '==', tenantId))),
+      getDocs(query(collection(db, 'proje_personel'), where('tenant_id', '==', tenantId))),
+      getDocs(query(collection(db, 'katlar'), where('tenant_id', '==', tenantId))),
+      getDocs(query(collection(db, 'tesisler'), where('tenant_id', '==', tenantId))),
+    ])
+    const baglantilar = bagSnap.docs.map(d => ({ id: d.id, ...d.data() }))
+    const personeller = perSnap.docs.map(d => ({ id: d.id, ...d.data() }))
+    const katlar = katSnap.docs.map(d => ({ id: d.id, ...d.data() }))
+    const tesisler = tesSnap.docs.map(d => ({ id: d.id, ...d.data() }))
+
+    const katAd = (katId) => {
+      const kat = katlar.find(k => k.id === katId)
+      const tesis = tesisler.find(t => t.id === kat?.tesis_id)
+      return kat ? `${tesis?.ad || ''} / ${kat.kat_adi}` : katId
+    }
+
+    // Sekme 1: Projeler genel
+    const genelData = projeler.map(p => ({
+      'Proje ID': p.id,
       'Proje Adı': p.ad || '',
       'Müşteri': musteriAd(p.sozlesme_id),
       'Sözleşme': sozlesmeAd(p.sozlesme_id),
+      'Sözleşmesiz': !p.sozlesme_id ? 'Evet' : 'Hayır',
       'Durum': p.durum || '',
       'İmza Tarihi': p.imza_tarihi || '',
       'Operasyon Başlangıcı': p.operasyon_baslangic || '',
       'Alan Tipleri': (p.alan_tipleri || []).join(', '),
       'BU Kodu': p.bu_kodu || '',
+      'Notlar': p.notlar || '',
     }))
-    exportToExcel(data, 'projeler', 'Projeler')
+
+    // Sekme 2: Kat Bağlantıları
+    const katData = baglantilar.map(b => {
+      const proje = projeler.find(p => p.id === b.proje_id)
+      return {
+        'Proje ID': b.proje_id,
+        'Proje Adı': proje?.ad || '',
+        'Müşteri': musteriAd(proje?.sozlesme_id),
+        'Kat': katAd(b.kat_id),
+        'Kullanılan m²': b.kullanilan_m2 || 0,
+        'Asmakat m² (Bonus)': b.kullanilan_asmakat_m2 || 0,
+        'Başlangıç': b.baslangic || '',
+        'Bitiş': b.bitis || '',
+      }
+    })
+
+    // Sekme 3: Personel Maliyeti
+    const perData = personeller.map(p => {
+      const proje = projeler.find(pr => pr.id === p.proje_id)
+      return {
+        'Proje ID': p.proje_id,
+        'Proje Adı': proje?.ad || '',
+        'Müşteri': musteriAd(proje?.sozlesme_id),
+        'Dönem': p.donem || '',
+        'Kişi Sayısı': p.kisi_sayisi || 0,
+        'Toplam Saat': p.toplam_saat || 0,
+        'Maliyet TRY': p.toplam_maliyet_try || 0,
+        'Maliyet USD': p.toplam_maliyet_usd || 0,
+        'Kur USD/TRY': p.kur || '',
+      }
+    })
+
+    exportMultiSheet([
+      { name: 'Projeler', data: genelData },
+      { name: 'Kat Bağlantıları', data: katData },
+      { name: 'Personel Maliyeti', data: perData },
+    ], 'projeler')
   }
+
   return (
     <div className="p-8">
       <div className="flex items-center justify-between mb-6">
