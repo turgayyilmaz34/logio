@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { exportToExcel } from '../utils/exportExcel'
+import { exportMultiSheet } from '../utils/exportExcel'
 import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where } from 'firebase/firestore'
 import { db, auth } from '../firebase'
 import TesisModal from '../components/TesisModal'
@@ -48,19 +48,92 @@ export default function Tesisler() {
     : 'bg-blue-50 text-blue-700'
 
 
-  const handleExport = () => {
-    const data = tesisler.map(t => ({
+  const handleExport = async () => {
+    const { getDocs, collection, query, where } = await import('firebase/firestore')
+    const { db } = await import('../firebase')
+    const tenantId = auth.currentUser?.email?.split('@')[1] || 'default'
+
+    const katSnap = await getDocs(query(collection(db, 'katlar'), where('tenant_id', '==', tenantId)))
+    const katlar = katSnap.docs.map(d => ({ id: d.id, ...d.data() }))
+
+    // Sekme 1: Tesisler genel
+    const tesislerData = tesisler.map(t => ({
+      'Tesis ID': t.id,
       'Tesis Adı': t.ad || '',
       'Şehir': t.sehir || '',
       'Adres': t.adres || '',
       'Tür': t.tur === 'mulk' ? 'Mülk' : 'Kiralık',
-      'Tesis Tipi': t.tesis_tipi_primary || '',
-      'Operatör Rolü': t.operator_rolu_primary || '',
+      'Tesis Tipi Primary': t.tesis_tipi_primary || '',
+      'Tesis Tipi Secondary': (t.tesis_tipi_secondary || []).join(', '),
       'TUR Kodu': t.tur_kodu || '',
       'OSB İçi': t.osb_ici ? 'Evet' : 'Hayır',
     }))
-    exportToExcel(data, 'tesisler', 'Tesisler')
+
+    // Sekme 2: Katlar
+    const katlarData = katlar.map(k => {
+      const tesis = tesisler.find(t => t.id === k.tesis_id)
+      return {
+        'Tesis ID': k.tesis_id || '',
+        'Tesis Adı': tesis?.ad || '',
+        'Kat Adı': k.kat_adi || '',
+        'TUR Kodu': k.tur_kodu || '',
+        'Sözleşme m²': k.sozlesme_m2 || 0,
+        'Kullanılabilir m²': k.kullanilabilir_m2 || 0,
+        'Tavan Yüksekliği (m)': k.tavan_yuksekligi || '',
+        'Alan Tipleri': (k.alan_tipleri || []).join(', '),
+        'Asmakat': k.asmakat_var ? 'Evet' : 'Hayır',
+        'Asmakat m²': k.asmakat_var ? (k.asmakat_m2 || 0) : '',
+        'Asmakat Açıklama': k.asmakat_aciklama || '',
+      }
+    })
+
+    // Sekme 3: Rol & Etiketler
+    const rolData = tesisler.map(t => ({
+      'Tesis ID': t.id,
+      'Tesis Adı': t.ad || '',
+      'Operatör Rolü Primary': t.operator_rolu_primary || '',
+      'Operatör Rolü Secondary': (t.operator_rolu_secondary || []).join(', '),
+      'Operasyon Etiketleri': (t.operasyon_etiketler || []).join(', '),
+      'Ruhsat Kimin Adına': t.belge_sahipligi?.ruhsat_kimin || '',
+      'ÇED Proje Sahibi': t.belge_sahipligi?.ced_proje_sahibi || '',
+      'İtfaiye Başvurusu': t.belge_sahipligi?.itfaiye_basvuru || '',
+      'Notlar': t.notlar || '',
+    }))
+
+    // Sekme 4: RACI & Uyum
+    const raciData = tesisler.map(t => ({
+      'Tesis ID': t.id,
+      'Tesis Adı': t.ad || '',
+      'Ruhsat Seviye': t.ruhsat?.seviye ?? '',
+      'Ruhsat Geçerlilik': t.ruhsat?.gecerlilik_tarihi || '',
+      'Ruhsat Belge': t.ruhsat?.belge_link || (t.ruhsat?.belge_base64 ? 'Yüklü' : ''),
+      'ÇED Seviye': t.ced?.seviye ?? '',
+      'ÇED Onay Tarihi': t.ced?.onay_tarihi || '',
+      'ÇED Belge': t.ced?.belge_link || (t.ced?.belge_base64 ? 'Yüklü' : ''),
+      'İtfaiye Seviye': t.itfaiye?.seviye ?? '',
+      'İtfaiye Geçerlilik': t.itfaiye?.gecerlilik_tarihi || '',
+      'RACI Ruhsat R': (t.raci?.ruhsat?.R || []).join(', '),
+      'RACI Ruhsat A': (t.raci?.ruhsat?.A || []).join(', '),
+      'RACI Ruhsat C': (t.raci?.ruhsat?.C || []).join(', '),
+      'RACI Ruhsat I': (t.raci?.ruhsat?.I || []).join(', '),
+      'RACI İtfaiye R': (t.raci?.itfaiye?.R || []).join(', '),
+      'RACI İtfaiye A': (t.raci?.itfaiye?.A || []).join(', '),
+      'RACI ÇED R': (t.raci?.ced?.R || []).join(', '),
+      'RACI ÇED A': (t.raci?.ced?.A || []).join(', '),
+      'Sözleşme Linki': t.kanit?.sozlesme_link || '',
+      'Ruhsat Linki': t.kanit?.ruhsat_link || '',
+      'İtfaiye Linki': t.kanit?.itfaiye_link || '',
+      'ÇED Linki': t.kanit?.ced_link || '',
+    }))
+
+    exportMultiSheet([
+      { name: 'Tesisler', data: tesislerData },
+      { name: 'Katlar', data: katlarData },
+      { name: 'Rol & Etiketler', data: rolData },
+      { name: 'RACI & Uyum', data: raciData },
+    ], 'tesisler')
   }
+
   return (
     <div className="p-8">
       <div className="flex items-center justify-between mb-6">
