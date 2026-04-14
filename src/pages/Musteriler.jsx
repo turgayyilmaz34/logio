@@ -1,5 +1,5 @@
-
 import { useState, useEffect } from 'react'
+import { exportToExcel } from '../utils/exportExcel'
 import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where } from 'firebase/firestore'
 import { db, auth } from '../firebase'
 import MusteriModal from '../components/MusteriModal'
@@ -51,6 +51,21 @@ export default function Musteriler() {
     m.ulke?.toLowerCase().includes(arama.toLowerCase())
   )
 
+
+  const handleExport = () => {
+    const data = musteriler.map(m => ({
+      'Müşteri Adı': m.ad || '',
+      'Ülke': m.ulke || '',
+      'Vergi No': m.vergi_no || '',
+      'Sektör': (m.sektor || []).join(', '),
+      'Ürün Tipleri': (m.urun_tipleri || []).join(', '),
+      'Ödeme Vadesi (gün)': m.odeme_vadesi_gun || '',
+      'Kredi Limiti (USD)': m.kredi_limiti_usd || '',
+      'Risk Sınıfı': m.risk_sinifi || '',
+      'Yıllık Ciro (USD)': m.yillik_ciro_usd || '',
+    }))
+    exportToExcel(data, 'musteriler', 'Müşteriler')
+  }
   return (
     <div className="p-8">
       <div className="flex items-center justify-between mb-6">
@@ -63,6 +78,10 @@ export default function Musteriler() {
           className="bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-800"
         >
           + Yeni Müşteri
+        </button>
+        <button onClick={handleExport}
+          className="px-4 py-2 border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50">
+          ↓ Excel
         </button>
       </div>
 
