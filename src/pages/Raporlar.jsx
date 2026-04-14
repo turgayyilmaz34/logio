@@ -33,7 +33,6 @@ export default function Raporlar() {
 
   // White Space Formül Hesaplaması: (Müşteri Alan * Süre) / (Tesis Alan * Süre)
   const analizVerisi = tesisler.map(t => {
-    // 1. Tesis Kapasite Puanı (Alan * Kiralık Kalan Süre)
     const toplamAlan = (t.katlar || []).reduce((s, k) => s + Number(k.alan || 0), 0)
     
     const bas = new Date(t.kira_baslangic || Date.now())
@@ -41,7 +40,6 @@ export default function Raporlar() {
     const tesisSureAy = Math.max(1, (bit - bas) / (1000 * 60 * 60 * 24 * 30))
     const tesisKapasitePuani = toplamAlan * tesisSureAy
 
-    // 2. Müşteri Doluluk Puanı (Sözleşme Alanları * Süreleri)
     const ilgiliSozlesmeler = sozlesmeler.filter(s => s.tesis_id === t.id)
     const musteriDolulukPuani = ilgiliSozlesmeler.reduce((sum, s) => {
       const alan = Number(s.alan_sqm || 0)
@@ -49,7 +47,6 @@ export default function Raporlar() {
       return sum + (alan * sure)
     }, 0)
 
-    // 3. Ratio (Oran)
     const ratio = tesisKapasitePuani > 0 ? (musteriDolulukPuani / tesisKapasitePuani) : 0
     
     return {
@@ -63,7 +60,6 @@ export default function Raporlar() {
     }
   })
 
-  // Radar Chart için Sabit Teknik Veriler (Örnek Skorlama)
   const radarData = [
     { subject: 'Lokasyon', A: 120, fullMark: 150 },
     { subject: 'Teknoloji', A: 98, fullMark: 150 },
@@ -84,7 +80,6 @@ export default function Raporlar() {
   return (
     <div className="p-8 max-w-[1600px] mx-auto bg-[#F8FAFC] min-h-screen">
       
-      {/* Header & Controller */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-6">
         <div>
           <h1 className="text-3xl font-black text-slate-900 tracking-tighter">WHITE SPACE RISK MAP</h1>
@@ -108,7 +103,6 @@ export default function Raporlar() {
 
       <div className="grid grid-cols-12 gap-8">
         
-        {/* Ana Grafik Alanı (White Space Oranları) */}
         <div className="col-span-12 lg:col-span-8 bg-white p-10 rounded-[40px] shadow-xl shadow-slate-200/50 border border-white">
           <div className="flex justify-between items-center mb-10">
             <div className="flex items-center gap-3">
@@ -146,10 +140,7 @@ export default function Raporlar() {
           </div>
         </div>
 
-        {/* Sağ Panel: Radar & Stats */}
         <div className="col-span-12 lg:col-span-4 space-y-8">
-          
-          {/* Radar Chart Card */}
           <div className="bg-slate-900 p-8 rounded-[40px] text-white shadow-2xl relative overflow-hidden">
             <div className="absolute top-0 right-0 p-6 opacity-10 text-white"><Activity size={80}/></div>
             <h3 className="font-bold text-slate-400 uppercase tracking-[0.2em] text-[10px] mb-8">Teknik Risk Radarı</h3>
@@ -170,7 +161,6 @@ export default function Raporlar() {
             </div>
           </div>
 
-          {/* Quick Info Cards */}
           <div className="grid grid-cols-2 gap-4">
             <div className="bg-white p-6 rounded-[32px] border border-slate-100 shadow-sm">
               <span className="text-[10px] font-black text-slate-400 uppercase">Kritik Tesis</span>
@@ -187,7 +177,6 @@ export default function Raporlar() {
           </div>
         </div>
 
-        {/* Alt Panel: Detaylı Tesis Portföy Tablosu */}
         <div className="col-span-12 bg-white rounded-[40px] shadow-sm border border-slate-100 overflow-hidden mb-20">
           <div className="px-10 py-8 border-b border-slate-50 flex justify-between items-center">
             <h3 className="font-black text-slate-800 uppercase tracking-tight">Portföy Detay Analizi</h3>
@@ -195,7 +184,7 @@ export default function Raporlar() {
               Toplam {tesisler.length} Aktif Tesis
             </div>
           </div>
-          <table className="w-full">
+          <table className="w-full text-left border-collapse">
             <thead className="bg-slate-50/50">
               <tr>
                 <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-left">Tesis & Yapı</th>
@@ -245,4 +234,22 @@ export default function Raporlar() {
                     </div>
                   </td>
                   <td className="px-8 py-6 text-right">
-                    {item.ratio > he
+                    {item.ratio > hedefOran ? (
+                      <div className="flex items-center justify-end gap-2 text-red-500 font-black text-[10px] uppercase">
+                        <AlertTriangle size={14} /> Sözleşme Uzat / Yer Bul
+                      </div>
+                    ) : (
+                      <div className="text-green-500 font-black text-[10px] uppercase">
+                        Kapasite Müsait
+                      </div>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  )
+}
