@@ -13,6 +13,8 @@ import Raporlar from './pages/Raporlar'
 import Kullanicilar from './pages/Kullanicilar'
 import Anketler from './pages/Anketler'
 import AnketDoldur from './pages/AnketDoldur'
+import Taseronlar from './pages/Taseronlar'
+import Rotalar from './pages/Rotalar'
 import Layout from './components/Layout'
 
 function AppWithRole() {
@@ -32,9 +34,7 @@ function AppWithRole() {
     <RoleContext.Provider value={roleData}>
       <BrowserRouter>
         <Routes>
-          {/* Public — login gerektirmez */}
           <Route path="/anket/:token" element={<AnketDoldur />} />
-
           <Route path="/login" element={!user ? <Login /> : <Navigate to="/" />} />
           <Route path="/" element={user ? <Layout /> : <Navigate to="/login" />}>
             <Route index element={<Dashboard />} />
@@ -47,6 +47,8 @@ function AppWithRole() {
             <Route path="anketler" element={<Anketler />} />
             <Route path="grup-sirketleri" element={<GrupSirketleri />} />
             <Route path="kullanicilar" element={<Kullanicilar />} />
+            <Route path="taseronlar" element={<Taseronlar />} />
+            <Route path="rotalar" element={<Rotalar />} />
           </Route>
         </Routes>
       </BrowserRouter>
@@ -54,6 +56,4 @@ function AppWithRole() {
   )
 }
 
-export default function App() {
-  return <AppWithRole />
-}
+export default function App() { return <AppWithRole /> }
