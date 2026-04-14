@@ -13,7 +13,8 @@ export default function Tesisler() {
   const [seciliTesis, setSeciliTesis] = useState(null)
   const [acikTesisId, setAcikTesisId] = useState(null)
 
-  const tenantId = auth.currentUser?.email?.split('@')[1] || 'default'
+const { rol } = useRole()
+    const tenantId = auth.currentUser?.email?.split('@')[1] || 'default'
 
   const yukle = async () => {
     setLoading(true)
