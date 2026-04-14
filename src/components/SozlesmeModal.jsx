@@ -29,6 +29,7 @@ const bos = {
   tra_arac_sayisi: '', tra_surucu_sayisi: '',
   vas_tesis_id: '', vas_depolama_ucreti: false, vas_kalemler: [],
   notlar: '',
+  belge: { tip: 'link', belge_link: '', belge_base64: '', belge_adi: '' },
 }
 
 function DepolamaDetay({ form, set, tenantId }) {
@@ -350,6 +351,47 @@ function VasDetay({ form, set, tenantId }) {
   )
 }
 
+
+function BelgeAlan({ label, deger, onChange }) {
+  const handleDosya = (e) => {
+    const file = e.target.files[0]
+    if (!file) return
+    if (file.size > 2 * 1024 * 1024) {
+      alert('Dosya 2MB\'dan büyük. Lütfen harici link kullanın.')
+      return
+    }
+    const reader = new FileReader()
+    reader.onload = (ev) => {
+      onChange({ ...deger, belge_base64: ev.target.result, belge_adi: file.name, belge_link: '' })
+    }
+    reader.readAsDataURL(file)
+  }
+  return (
+    <div className="space-y-2">
+      <div className="text-xs font-medium text-gray-500">{label}</div>
+      {deger?.belge_base64 ? (
+        <div className="flex items-center gap-2 bg-green-50 px-3 py-2 rounded-lg">
+          <span className="text-xs text-green-700 flex-1">{deger.belge_adi}</span>
+          <button onClick={() => onChange({ ...deger, belge_base64: '', belge_adi: '' })} className="text-xs text-red-400">Kaldır</button>
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 gap-2">
+          <label className="cursor-pointer border border-dashed border-gray-200 rounded-lg px-3 py-2 text-xs text-gray-400 hover:border-gray-300 text-center">
+            📎 Dosya Yükle (max 2MB)
+            <input type="file" accept=".pdf,.doc,.docx" className="hidden" onChange={handleDosya} />
+          </label>
+          <input
+            value={deger?.belge_link || ''}
+            onChange={e => onChange({ ...deger, belge_link: e.target.value, belge_base64: '' })}
+            placeholder="SharePoint / Drive linki"
+            className="border border-gray-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-blue-400"
+          />
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function SozlesmeModal({ sozlesme, musteriler, tenantId, onKaydet, onKapat }) {
   const [form, setForm] = useState(sozlesme ? { ...bos, ...sozlesme } : { ...bos })
   const [aktifTab, setAktifTab] = useState('genel')
@@ -513,6 +555,14 @@ export default function SozlesmeModal({ sozlesme, musteriler, tenantId, onKaydet
                 <label className="block text-xs font-medium text-gray-500 mb-1">Notlar</label>
                 <textarea value={form.notlar} onChange={e => set('notlar', e.target.value)} rows={2}
                   className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-blue-400 resize-none" />
+              </div>
+
+              <div className="border-t border-gray-100 pt-4">
+                <BelgeAlan
+                  label="Sözleşme Belgesi (PDF/Word, max 2MB veya link)"
+                  deger={form.belge}
+                  onChange={v => set('belge', v)}
+                />
               </div>
             </div>
           )}
