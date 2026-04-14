@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { exportMultiSheet } from '../utils/exportExcel'
 import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where } from 'firebase/firestore'
 import { db, auth } from '../firebase'
+import { useRole, canDelete } from '../hooks/useRole'
 import IhaleModal from '../components/IhaleModal'
 
 const DURUM_RENK = {
@@ -245,10 +246,12 @@ export default function Ihaleler() {
                       className="text-xs px-3 py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50">
                       Düzenle
                     </button>
-                    <button onClick={() => sil(i.id)}
+                    {canDelete(rol) && (
+              <button onClick={() => sil(i.id)}
                       className="text-xs px-3 py-1.5 rounded-lg border border-red-100 text-red-500 hover:bg-red-50">
                       Sil
                     </button>
+              )}
                   </div>
                 </div>
               </div>
