@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { exportToExcel } from '../utils/exportExcel'
+import { exportMultiSheet } from '../utils/exportExcel'
 import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where } from 'firebase/firestore'
 import { db, auth } from '../firebase'
 import SozlesmeModal from '../components/SozlesmeModal'
@@ -82,7 +82,9 @@ export default function Sozlesmeler() {
 
 
   const handleExport = () => {
-    const data = sozlesmeler.map(s => ({
+    // Sekme 1: Genel
+    const genelData = sozlesmeler.map(s => ({
+      'Sözleşme ID': s.id,
       'Sözleşme Adı': s.ad || '',
       'Müşteri': musteriAd(s.musteri_id),
       'Tip': s.tip || '',
@@ -90,12 +92,108 @@ export default function Sozlesmeler() {
       'Başlangıç': s.baslangic || '',
       'Bitiş': s.bitis || '',
       'Para Birimi': s.para_birimi || '',
-      'İmzalayan Şirket': s.imzalayan_sirket || '',
       'Sözleşme Yapısı': s.sozlesme_tipi || '',
-      'Artış Var': s.artis_var ? 'Evet' : 'Hayır',
+      'Yenileme Uyarı (gün)': s.yenileme_uyari_gun || '',
+      'Notlar': s.notlar || '',
     }))
-    exportToExcel(data, 'sozlesmeler', 'Sözleşmeler')
+
+    // Sekme 2: Depolama Detay
+    const depoData = sozlesmeler.filter(s => s.tip === 'depolama' || s.tip === 'karma').map(s => ({
+      'Sözleşme ID': s.id,
+      'Sözleşme Adı': s.ad || '',
+      'Müşteri': musteriAd(s.musteri_id),
+      'Fiyatlandırma Modu': s.dep_fiyatlandirma_modu || '',
+      'Sabit Baz Tutar': s.dep_sabit_baz || '',
+      'm² Birim Fiyat': s.dep_m2_birim_fiyat || '',
+      'Asmakat Müşteri Fiyatı': s.dep_asmakat_musteri_fiyat || '',
+      'Asmakat Maliyet': s.dep_asmakat_maliyet_fiyat || '',
+      'Tavan Katsayısı Eşiği': s.dep_tavan_katsayisi_esigi || '',
+      'Tavan Katsayısı Oranı': s.dep_tavan_katsayisi_orani || '',
+    }))
+
+    // Sekme 3: Transport Detay
+    const traData = []
+    sozlesmeler.filter(s => s.tip === 'transport' || s.tip === 'karma').forEach(s => {
+      const kalemler = s.tra_kalemler || []
+      if (kalemler.length === 0) {
+        traData.push({
+          'Sözleşme ID': s.id,
+          'Sözleşme Adı': s.ad || '',
+          'Müşteri': musteriAd(s.musteri_id),
+          'Araç Sayısı': s.tra_arac_sayisi || '',
+          'Sürücü Sayısı': s.tra_surucu_sayisi || '',
+          'Kalem Tipi': '', 'Açıklama': '',
+          'Maliyet Fiyat': '', 'Maliyet PB': '',
+          'Müşteri Fiyat': '', 'Müşteri PB': '',
+        })
+      } else {
+        kalemler.forEach(k => {
+          traData.push({
+            'Sözleşme ID': s.id,
+            'Sözleşme Adı': s.ad || '',
+            'Müşteri': musteriAd(s.musteri_id),
+            'Araç Sayısı': s.tra_arac_sayisi || '',
+            'Sürücü Sayısı': s.tra_surucu_sayisi || '',
+            'Kalem Tipi': k.tip || '',
+            'Açıklama': k.aciklama || '',
+            'Maliyet Fiyat': k.maliyet_fiyat || '',
+            'Maliyet PB': k.maliyet_pb || '',
+            'Müşteri Fiyat': k.musteri_fiyat || '',
+            'Müşteri PB': k.musteri_pb || '',
+          })
+        })
+      }
+    })
+
+    // Sekme 4: VAS Detay
+    const vasData = []
+    sozlesmeler.filter(s => s.tip === 'vas' || s.tip === 'karma').forEach(s => {
+      const kalemler = s.vas_kalemler || []
+      if (kalemler.length === 0) {
+        vasData.push({
+          'Sözleşme ID': s.id, 'Sözleşme Adı': s.ad || '',
+          'Müşteri': musteriAd(s.musteri_id),
+          'Depolama Ücreti': s.vas_depolama_ucreti ? 'Evet' : 'Hayır',
+          'Kalem Tipi': '', 'Açıklama': '',
+          'Maliyet Fiyat': '', 'Maliyet PB': '',
+          'Müşteri Fiyat': '', 'Müşteri PB': '',
+        })
+      } else {
+        kalemler.forEach(k => {
+          vasData.push({
+            'Sözleşme ID': s.id, 'Sözleşme Adı': s.ad || '',
+            'Müşteri': musteriAd(s.musteri_id),
+            'Depolama Ücreti': s.vas_depolama_ucreti ? 'Evet' : 'Hayır',
+            'Kalem Tipi': k.tip || '', 'Açıklama': k.aciklama || '',
+            'Maliyet Fiyat': k.maliyet_fiyat || '', 'Maliyet PB': k.maliyet_pb || '',
+            'Müşteri Fiyat': k.musteri_fiyat || '', 'Müşteri PB': k.musteri_pb || '',
+          })
+        })
+      }
+    })
+
+    // Sekme 5: Artış & Ürün
+    const artisData = sozlesmeler.map(s => ({
+      'Sözleşme ID': s.id,
+      'Sözleşme Adı': s.ad || '',
+      'Müşteri': musteriAd(s.musteri_id),
+      'Artış Var': s.artis_var ? 'Evet' : 'Hayır',
+      'Artış Tipi': s.artis_tipi || '',
+      'Zamanlama': s.artis_zamanlama || '',
+      'Artış Tarihi': s.artis_belirli_tarih || '',
+      'Özel Formül': s.artis_ozel_formul || '',
+      'Ürün Tipleri': (s.urun_tipleri || []).join(', '),
+    }))
+
+    exportMultiSheet([
+      { name: 'Sözleşmeler', data: genelData },
+      { name: 'Depolama', data: depoData },
+      { name: 'Transport', data: traData },
+      { name: 'VAS', data: vasData },
+      { name: 'Artış & Ürün', data: artisData },
+    ], 'sozlesmeler')
   }
+
   return (
     <div className="p-8">
       <div className="flex items-center justify-between mb-6">
