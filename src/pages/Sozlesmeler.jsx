@@ -32,7 +32,8 @@ function gunKaldi(bitis) {
 }
 
 export default function Sozlesmeler() {
-  const [sozlesmeler, setSozlesmeler] = useState([])
+const { rol } = useRole()
+    const [sozlesmeler, setSozlesmeler] = useState([])
   const [musteriler, setMusteriler] = useState([])
   const [loading, setLoading] = useState(true)
   const [modalAcik, setModalAcik] = useState(false)
