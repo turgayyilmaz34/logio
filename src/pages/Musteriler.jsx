@@ -17,60 +17,60 @@ export default function Musteriler() {
   const [modalAcik, setModalAcik] = useState(false)
   const [secili, setSecili] = useState(null)
   const [arama, setArama] = useState('')
+  const [anketVerisi, setAnketVerisi] = useState({})
 
-  // useRole'den gelen değişkenin 'role' veya 'rol' olduğundan emin olmalıyız. 
-  // Yaygın kullanım 'role' olduğu için burada 'role' olarak alıp 'rol' ismine eşitliyoruz.
-  const { role: rol } = useRole() 
-  
-  const currentUser = auth.currentUser;
-  const tenantId = currentUser?.email?.split('@')[1] || 'default'
+const { rol } = useRole()
+    const tenantId = auth.currentUser?.email?.split('@')[1] || 'default'
 
   const yukle = async () => {
-    if (!tenantId) return;
     setLoading(true)
-    try {
-      const q = query(collection(db, 'musteriler'), where('tenant_id', '==', tenantId))
-      const snap = await getDocs(q)
-      setMusteriler(snap.docs.map(d => ({ id: d.id, ...d.data() })))
-    } catch (error) {
-      console.error("Müşteriler yüklenirken hata oluştu:", error)
-    } finally {
-      setLoading(false)
-    }
+    const q = query(collection(db, 'musteriler'), where('tenant_id', '==', tenantId))
+    const snap = await getDocs(q)
+    setMusteriler(snap.docs.map(d => ({ id: d.id, ...d.data() })))
+    setLoading(false)
   }
 
-  // auth state değiştiğinde veya bileşen yüklendiğinde veriyi çek
   useEffect(() => {
-    const unsubscribe = auth.onAuthStateChanged((user) => {
-      if (user) {
-        yukle()
-      }
-    })
-    return () => unsubscribe()
-  }, [tenantId])
+    yukle()
+    const yukleAnket = async () => {
+      const [aSnap, cSnap] = await Promise.all([
+        getDocs(query(collection(db, 'anketler'), where('tenant_id', '==', tenantId))),
+        getDocs(query(collection(db, 'anket_cevaplari'), where('tenant_id', '==', tenantId))),
+      ])
+      const anketler = aSnap.docs.map(d => ({ id: d.id, ...d.data() }))
+      const cevaplar = cSnap.docs.map(d => ({ id: d.id, ...d.data() }))
+      // Müşteri bazında NPS ortalaması
+      const map = {}
+      anketler.forEach(a => {
+        const cevap = cevaplar.find(c => c.anket_id === a.id && c.nps !== undefined)
+        if (!cevap) return
+        if (!map[a.musteri_id]) map[a.musteri_id] = { toplam: 0, sayi: 0 }
+        map[a.musteri_id].toplam += cevap.nps
+        map[a.musteri_id].sayi += 1
+      })
+      const ortalamalar = {}
+      Object.entries(map).forEach(([id, v]) => {
+        ortalamalar[id] = Math.round(v.toplam / v.sayi * 10) / 10
+      })
+      setAnketVerisi(ortalamalar)
+    }
+    yukleAnket()
+  }, [])
 
   const kaydet = async (veri) => {
-    try {
-      if (secili) {
-        await updateDoc(doc(db, 'musteriler', secili.id), veri)
-      } else {
-        await addDoc(collection(db, 'musteriler'), { ...veri, tenant_id: tenantId })
-      }
-      setModalAcik(false)
-      yukle()
-    } catch (error) {
-      alert("Kaydedilirken bir hata oluştu.")
+    if (secili) {
+      await updateDoc(doc(db, 'musteriler', secili.id), veri)
+    } else {
+      await addDoc(collection(db, 'musteriler'), { ...veri, tenant_id: tenantId })
     }
+    setModalAcik(false)
+    yukle()
   }
 
   const sil = async (id) => {
     if (!window.confirm('Bu müşteriyi silmek istediğinize emin misiniz?')) return
-    try {
-      await deleteDoc(doc(db, 'musteriler', id))
-      yukle()
-    } catch (error) {
-      alert("Silme işlemi başarısız.")
-    }
+    await deleteDoc(doc(db, 'musteriler', id))
+    yukle()
   }
 
   const filtreli = musteriler.filter(m =>
@@ -79,7 +79,9 @@ export default function Musteriler() {
     m.ulke?.toLowerCase().includes(arama.toLowerCase())
   )
 
+
   const handleExport = () => {
+    // Sekme 1: Müşteriler genel
     const genelData = musteriler.map(m => ({
       'Müşteri ID': m.id,
       'Müşteri Adı': m.ad || '',
@@ -92,6 +94,7 @@ export default function Musteriler() {
       'Notlar': m.notlar || '',
     }))
 
+    // Sekme 2: Sektör & Ürün
     const sektorData = musteriler.map(m => ({
       'Müşteri ID': m.id,
       'Müşteri Adı': m.ad || '',
@@ -99,6 +102,7 @@ export default function Musteriler() {
       'Ürün Tipleri': (m.urun_tipleri || []).join(', '),
     }))
 
+    // Sekme 3: İrtibat Kişileri (her kişi ayrı satır)
     const irtibatData = []
     musteriler.forEach(m => {
       const kisiler = m.irtibat_kisiler || []
@@ -106,7 +110,10 @@ export default function Musteriler() {
         irtibatData.push({
           'Müşteri ID': m.id,
           'Müşteri Adı': m.ad || '',
-          'Ad': '', 'Ünvan': '', 'E-posta': '', 'Telefon': '',
+          'Ad': '',
+          'Ünvan': '',
+          'E-posta': '',
+          'Telefon': '',
         })
       } else {
         kisiler.forEach(k => {
@@ -136,20 +143,19 @@ export default function Musteriler() {
           <h1 className="text-xl font-semibold text-gray-800">Müşteriler</h1>
           <p className="text-sm text-gray-400 mt-0.5">{musteriler.length} müşteri kayıtlı</p>
         </div>
-        <div className="flex gap-2">
-          <button onClick={handleExport}
-            className="px-4 py-2 border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50">
-            ↓ Excel
-          </button>
-          <button
-            onClick={() => { setSecili(null); setModalAcik(true) }}
-            className="bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-800"
-          >
-            + Yeni Müşteri
-          </button>
-        </div>
+        <button
+          onClick={() => { setSecili(null); setModalAcik(true) }}
+          className="bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-800"
+        >
+          + Yeni Müşteri
+        </button>
+        <button onClick={handleExport}
+          className="px-4 py-2 border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50">
+          ↓ Excel
+        </button>
       </div>
 
+      {/* Arama */}
       {musteriler.length > 0 && (
         <div className="mb-4">
           <input
@@ -176,68 +182,74 @@ export default function Musteriler() {
         </div>
       ) : (
         <div className="bg-white rounded-xl border border-gray-100 overflow-hidden">
-          <table className="w-full text-left border-collapse">
+          <table className="w-full">
             <thead>
-              <tr className="border-b border-gray-100 bg-gray-50/50">
-                <th className="px-5 py-3 text-xs font-medium text-gray-400 uppercase">Müşteri</th>
-                <th className="px-5 py-3 text-xs font-medium text-gray-400 uppercase">Sektör / Ürün</th>
-                <th className="px-5 py-3 text-xs font-medium text-gray-400 uppercase">Ülke</th>
-                <th className="px-5 py-3 text-xs font-medium text-gray-400 uppercase">Vade/Limit</th>
-                <th className="px-5 py-3 text-xs font-medium text-gray-400 uppercase">Risk</th>
-                <th className="px-5 py-3 text-xs font-medium text-gray-400 uppercase text-right">İşlemler</th>
+              <tr className="border-b border-gray-100">
+                <th className="text-left px-5 py-3 text-xs font-medium text-gray-400 uppercase tracking-wide">Müşteri</th>
+                <th className="text-left px-5 py-3 text-xs font-medium text-gray-400 uppercase tracking-wide">Sektör / Ürün</th>
+                <th className="text-left px-5 py-3 text-xs font-medium text-gray-400 uppercase tracking-wide">Ülke</th>
+                <th className="text-left px-5 py-3 text-xs font-medium text-gray-400 uppercase tracking-wide">Ödeme Vadesi</th>
+                <th className="text-left px-5 py-3 text-xs font-medium text-gray-400 uppercase tracking-wide">Kredi Limiti</th>
+                <th className="text-left px-5 py-3 text-xs font-medium text-gray-400 uppercase tracking-wide">Risk</th>
+                <th className="px-5 py-3"></th>
               </tr>
             </thead>
             <tbody>
-              {filtreli.map((m) => (
-                <tr key={m.id} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
+              {filtreli.map((m, i) => (
+                <tr key={m.id} className={`border-b border-gray-50 hover:bg-gray-50 transition-colors ${i === filtreli.length - 1 ? 'border-0' : ''}`}>
                   <td className="px-5 py-3.5">
                     <div className="font-medium text-gray-800 text-sm">{m.ad}</div>
-                    <div className="text-[10px] text-gray-300 font-mono">{m.id}</div>
+                    <code className="text-xs text-gray-300 font-mono">{m.id.slice(0, 8)}…</code>
                   </td>
                   <td className="px-5 py-3.5">
                     <div className="flex flex-wrap gap-1">
-                      {m.sektor?.slice(0, 1).map(s => (
-                        <span key={s} className="text-[10px] bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">{s}</span>
+                      {m.sektor?.slice(0, 2).map(s => (
+                        <span key={s} className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">{s}</span>
                       ))}
-                      {m.urun_tipleri?.slice(0, 1).map(u => (
-                        <span key={u} className="text-[10px] bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full">{u}</span>
+                      {m.urun_tipleri?.slice(0, 2).map(u => (
+                        <span key={u} className="text-xs bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full">{u}</span>
                       ))}
                     </div>
                   </td>
                   <td className="px-5 py-3.5 text-sm text-gray-600">{m.ulke || '—'}</td>
                   <td className="px-5 py-3.5 text-sm text-gray-600">
-                    <div className="text-xs">{m.odeme_vadesi_gun ? `${m.odeme_vadesi_gun} Gün` : '—'}</div>
-                    <div className="text-[10px] text-gray-400">{m.kredi_limiti_usd ? `$${Number(m.kredi_limiti_usd).toLocaleString()}` : ''}</div>
+                    {m.odeme_vadesi_gun ? `${m.odeme_vadesi_gun} gün` : '—'}
+                  </td>
+                  <td className="px-5 py-3.5 text-sm text-gray-600">
+                    {m.kredi_limiti_usd ? `$${Number(m.kredi_limiti_usd).toLocaleString()}` : '—'}
                   </td>
                   <td className="px-5 py-3.5">
                     {m.risk_sinifi ? (
-                      <span className={`text-[10px] px-2 py-1 rounded-full font-bold ${RISK_RENK[m.risk_sinifi]}`}>
+                      <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${RISK_RENK[m.risk_sinifi] || ''}`}>
                         {m.risk_sinifi}
                       </span>
                     ) : '—'}
                   </td>
-                  <td className="px-5 py-3.5 text-right">
+                  <td className="px-5 py-3.5">
                     <div className="flex items-center gap-2 justify-end">
                       <button
                         onClick={() => { setSecili(m); setModalAcik(true) }}
-                        className="text-xs px-2 py-1 rounded border border-gray-200 text-gray-600 hover:bg-gray-100"
+                        className="text-xs px-3 py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50"
                       >
                         Düzenle
                       </button>
                       {canDelete(rol) && (
-                        <button
-                          onClick={() => sil(m.id)}
-                          className="text-xs px-2 py-1 rounded border border-red-100 text-red-500 hover:bg-red-50"
-                        >
-                          Sil
-                        </button>
-                      )}
+              <button
+                        onClick={() => sil(m.id)}
+                        className="text-xs px-3 py-1.5 rounded-lg border border-red-100 text-red-500 hover:bg-red-50"
+                      >
+                        Sil
+                      </button>
+              )}
                     </div>
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
+          {filtreli.length === 0 && (
+            <div className="text-center py-8 text-sm text-gray-400">Arama sonucu bulunamadı.</div>
+          )}
         </div>
       )}
 
