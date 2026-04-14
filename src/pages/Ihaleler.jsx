@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { exportToExcel } from '../utils/exportExcel'
+import { exportMultiSheet } from '../utils/exportExcel'
 import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where } from 'firebase/firestore'
 import { db, auth } from '../firebase'
 import IhaleModal from '../components/IhaleModal'
@@ -91,23 +91,40 @@ export default function Ihaleler() {
 
 
   const handleExport = () => {
-    const data = ihaleler.map(i => ({
+    // Sekme 1: Genel
+    const genelData = ihaleler.map(i => ({
+      'İhale ID': i.id,
       'İhale Adı': i.ad || '',
       'Müşteri': musteriAd(i.musteri_id),
       'Durum': i.durum || '',
       'Son Başvuru': i.son_basvuru || '',
-      'Tahmini Değer (USD)': i.tahmini_deger_usd || '',
+      'Tahmini Değer': i.tahmini_deger_usd || '',
       'Para Birimi': i.para_birimi || '',
       'Satış Sorumlusu': i.sorumlu_satis || '',
       'ZDS Sorumlusu': i.sorumlu_zds || '',
       'Operasyon Sorumlusu': i.sorumlu_operasyon || '',
-      'Mevcut 3PL': i.mevcut_3pl || '',
       'Sadece Fiyat': i.sadece_fiyat ? 'Evet' : 'Hayır',
+      'Notlar': i.notlar || '',
+    }))
+
+    // Sekme 2: Hikaye & Kapsam
+    const hikayeData = ihaleler.map(i => ({
+      'İhale ID': i.id,
+      'İhale Adı': i.ad || '',
+      'Müşteri': musteriAd(i.musteri_id),
+      'Nereden Geldi': i.hikaye_nereden_geldi || '',
+      'Mevcut 3PL': i.mevcut_3pl || '',
+      'Değişim Sebebi': i.degisim_sebebi || '',
       'Hizmet Tipleri': (i.hizmet_tipleri || []).join(', '),
       'Ürün Tipleri': (i.urun_tipleri || []).join(', '),
     }))
-    exportToExcel(data, 'ihaleler', 'İhaleler')
+
+    exportMultiSheet([
+      { name: 'İhaleler', data: genelData },
+      { name: 'Hikaye & Kapsam', data: hikayeData },
+    ], 'ihaleler')
   }
+
   return (
     <div className="p-8">
       <div className="flex items-center justify-between mb-6">
