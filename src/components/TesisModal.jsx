@@ -42,7 +42,7 @@ const SEVIYE_ACIKLAMALARI = {
 
 const bos = {
   ad: '', sehir: '', adres: '', tur: 'kiralik',
-  tur_kodu: '', isletici_sirket_id: '',
+  tur_kodu: '', isletici_sirket_id: '', yapi_tipi: '',
   tesis_tipi_primary: '', tesis_tipi_secondary: [],
   operator_rolu_primary: '', operator_rolu_secondary: [],
   osb_ici: false, operasyon_etiketler: [],
@@ -157,6 +157,7 @@ export default function TesisModal({ tesis, onKaydet, onKapat }) {
     tur: tesis.tur || 'kiralik',
     tur_kodu: tesis.tur_kodu || '',
     isletici_sirket_id: tesis.isletici_sirket_id || '',
+    yapi_tipi: tesis.yapi_tipi || '',
     tesis_tipi_primary: tesis.tesis_tipi_primary || '',
     tesis_tipi_secondary: tesis.tesis_tipi_secondary || [],
     operator_rolu_primary: tesis.operator_rolu_primary || '',
@@ -278,6 +279,19 @@ export default function TesisModal({ tesis, onKaydet, onKapat }) {
                       </button>
                     ))}
                   </div>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">Yapı Tipi</label>
+                <div className="flex gap-2">
+                  {[['betonarme', 'Betonarme'], ['celik', 'Çelik Konstrüksiyon'], ['karma', 'Karma'], ['diger', 'Diğer']].map(([val, label]) => (
+                    <button key={val} onClick={() => set('yapi_tipi', form.yapi_tipi === val ? '' : val)}
+                      className={`flex-1 py-2 rounded-lg text-xs font-medium border transition-colors ${
+                        form.yapi_tipi === val ? 'bg-blue-700 text-white border-blue-700' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
+                      }`}>{label}
+                    </button>
+                  ))}
                 </div>
               </div>
 
