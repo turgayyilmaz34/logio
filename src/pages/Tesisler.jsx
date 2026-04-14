@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { exportMultiSheet } from '../utils/exportExcel'
 import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where } from 'firebase/firestore'
 import { db, auth } from '../firebase'
+import { useRole, canDelete } from '../hooks/useRole'
 import TesisModal from '../components/TesisModal'
 import KatlarPanel from '../components/KatlarPanel'
 
