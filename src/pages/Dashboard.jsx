@@ -305,6 +305,16 @@ export default function Dashboard() {
           )}
 
           {/* Uyarılar */}
+          {belgeSuresiUyarilari.length > 0 && (
+            <div className="mb-4">
+              <UyariKart
+                baslik="🏛️ Ruhsat / İtfaiye / ÇED Bitiş"
+                items={belgeSuresiUyarilari}
+                renk="border-purple-200 bg-purple-50 text-purple-800"
+              />
+            </div>
+          )}
+
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <UyariKart
               baslik="⚠️ Sözleşme Bitiş"
