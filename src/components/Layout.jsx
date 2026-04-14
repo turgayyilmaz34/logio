@@ -1,6 +1,10 @@
 import { Outlet, NavLink, useNavigate } from 'react-router-dom'
 import { signOut } from 'firebase/auth'
 import { auth } from '../firebase'
+import { useRole, canManageUsers } from '../hooks/useRole'
+
+const ROL_LABEL = { admin: 'Admin', finansal_operasyon: 'Fin. Op.', operasyon: 'Operasyon' }
+const ROL_RENK = { admin: 'bg-blue-100 text-blue-700', finansal_operasyon: 'bg-purple-100 text-purple-700', operasyon: 'bg-green-100 text-green-700' }
 
 const navItems = [
   { to: '/', label: 'Dashboard', icon: '▦' },
@@ -12,12 +16,9 @@ const navItems = [
   { to: '/raporlar', label: 'Raporlar', icon: '📊' },
 ]
 
-const altNavItems = [
-  { to: '/grup-sirketleri', label: 'Grup Şirketleri', icon: '🏢' },
-]
-
 export default function Layout() {
   const navigate = useNavigate()
+  const { rol } = useRole()
 
   const handleLogout = async () => {
     await signOut(auth)
@@ -48,22 +49,31 @@ export default function Layout() {
 
           <div className="pt-3 mt-3 border-t border-gray-100">
             <div className="text-xs text-gray-300 uppercase tracking-wide px-3 mb-1">Tanımlar</div>
-            {altNavItems.map(item => (
-              <NavLink key={item.to} to={item.to}
+            <NavLink to="/grup-sirketleri"
+              className={({ isActive }) =>
+                `flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${isActive ? 'bg-blue-50 text-blue-700 font-medium' : 'text-gray-500 hover:bg-gray-50'}`
+              }>
+              <span>🏢</span> Grup Şirketleri
+            </NavLink>
+            {canManageUsers(rol) && (
+              <NavLink to="/kullanicilar"
                 className={({ isActive }) =>
-                  `flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${isActive
-                    ? 'bg-blue-50 text-blue-700 font-medium'
-                    : 'text-gray-500 hover:bg-gray-50'
-                  }`
+                  `flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${isActive ? 'bg-blue-50 text-blue-700 font-medium' : 'text-gray-500 hover:bg-gray-50'}`
                 }>
-                <span className="text-base">{item.icon}</span>
-                {item.label}
+                <span>👤</span> Kullanıcılar
               </NavLink>
-            ))}
+            )}
           </div>
         </nav>
 
         <div className="px-3 py-4 border-t border-gray-100">
+          {rol && (
+            <div className="px-3 py-2 mb-2">
+              <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${ROL_RENK[rol] || ''}`}>
+                {ROL_LABEL[rol] || rol}
+              </span>
+            </div>
+          )}
           <button onClick={handleLogout}
             className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-500 hover:bg-gray-50 transition-colors">
             <span>↩</span>
