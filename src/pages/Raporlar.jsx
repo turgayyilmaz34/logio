@@ -1,8 +1,8 @@
-
 import { useState, useEffect } from 'react'
 import { collection, getDocs, query, where } from 'firebase/firestore'
 import { db, auth } from '../firebase'
 import { exportMultiSheet } from '../utils/exportExcel'
+import { useRole, canSeeMali, isOperasyon } from '../hooks/useRole'
 
 const TABS = [
   { id: 'ciro', label: 'Ciro & Marj' },
@@ -50,6 +50,7 @@ function Tablo({ basliklar, satirlar, bos }) {
 
 export default function Raporlar() {
   const [aktifTab, setAktifTab] = useState('ciro')
+  const { rol } = useRole()
   const [yukleniyor, setYukleniyor] = useState(true)
   const [veri, setVeri] = useState({
     sozlesmeler: [], musteriler: [], projeler: [],
