@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { exportMultiSheet } from '../utils/exportExcel'
 import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where } from 'firebase/firestore'
 import { db, auth } from '../firebase'
+import { useRole, canDelete, canSeeMali } from '../hooks/useRole'
 import SozlesmeModal from '../components/SozlesmeModal'
 
 const TIP_RENK = {
@@ -248,7 +249,7 @@ export default function Sozlesmeler() {
                 <th className="text-left px-5 py-3 text-xs font-medium text-gray-400 uppercase tracking-wide">Müşteri</th>
                 <th className="text-left px-5 py-3 text-xs font-medium text-gray-400 uppercase tracking-wide">Tip</th>
                 <th className="text-left px-5 py-3 text-xs font-medium text-gray-400 uppercase tracking-wide">Dönem</th>
-                <th className="text-left px-5 py-3 text-xs font-medium text-gray-400 uppercase tracking-wide">Para Birimi</th>
+                {canSeeMali(rol) && <th className="text-left px-5 py-3 text-xs font-medium text-gray-400 uppercase tracking-wide">Para Birimi</th>}
                 <th className="text-left px-5 py-3 text-xs font-medium text-gray-400 uppercase tracking-wide">Durum</th>
                 <th className="px-5 py-3"></th>
               </tr>
@@ -276,7 +277,7 @@ export default function Sozlesmeler() {
                         </div>
                       )}
                     </td>
-                    <td className="px-5 py-3.5 text-sm text-gray-600">{s.para_birimi || '—'}</td>
+                    {canSeeMali(rol) && <td className="px-5 py-3.5 text-sm text-gray-600">{s.para_birimi || '—'}</td>}
                     <td className="px-5 py-3.5">
                       <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${DURUM_RENK[s.durum] || 'bg-gray-100 text-gray-600'}`}>
                         {s.durum === 'teklif' ? 'Teklif' : s.durum === 'aktif' ? 'Aktif' : s.durum === 'bitti' ? 'Bitti' : 'İptal'}
@@ -288,10 +289,12 @@ export default function Sozlesmeler() {
                           className="text-xs px-3 py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50">
                           Düzenle
                         </button>
-                        <button onClick={() => sil(s.id)}
+                        {canDelete(rol) && (
+              <button onClick={() => sil(s.id)}
                           className="text-xs px-3 py-1.5 rounded-lg border border-red-100 text-red-500 hover:bg-red-50">
                           Sil
                         </button>
+              )}
                       </div>
                     </td>
                   </tr>
