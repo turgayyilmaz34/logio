@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { collection, getDocs, addDoc, deleteDoc, doc, query, where, updateDoc } from 'firebase/firestore'
+import { useRole, canManageUsers } from '../hooks/useRole'
 import { db } from '../firebase'
 
 const ALAN_TIPLERI = [
@@ -267,8 +268,19 @@ export default function ProjeModal({ proje, sozlesmeler, musteriler, tenantId, o
     durum: proje?.durum || 'teklif',
     alan_tipleri: proje?.alan_tipleri || [],
     notlar: proje?.notlar || '',
+    sorumlu_kullanici_id: proje?.sorumlu_kullanici_id || '',
   })
   const [aktifTab, setAktifTab] = useState('genel')
+  const [kullanicilar, setKullanicilar] = useState([])
+  const { rol } = useRole()
+
+  useEffect(() => {
+    const yukle = async () => {
+      const snap = await getDocs(query(collection(db, 'kullanicilar'), where('tenant_id', '==', tenantId)))
+      setKullanicilar(snap.docs.map(d => ({ id: d.id, ...d.data() })))
+    }
+    yukle()
+  }, [])
 
   const set = (key, val) => setForm(f => ({ ...f, [key]: val }))
 
@@ -395,6 +407,19 @@ export default function ProjeModal({ proje, sozlesmeler, musteriler, tenantId, o
                   ))}
                 </div>
               </div>
+
+              {canManageUsers(rol) && kullanicilar.length > 0 && (
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Sorumlu (Operasyon Kullanıcısı)</label>
+                  <select value={form.sorumlu_kullanici_id} onChange={e => set('sorumlu_kullanici_id', e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:outline-none focus:border-blue-400">
+                    <option value="">Atanmamış</option>
+                    {kullanicilar.filter(k => k.aktif).map(k => (
+                      <option key={k.id} value={k.id}>{k.ad} ({k.rol === 'operasyon' ? 'Operasyon' : k.rol})</option>
+                    ))}
+                  </select>
+                </div>
+              )}
 
               <div>
                 <label className="block text-xs font-medium text-gray-500 mb-1">Notlar</label>
