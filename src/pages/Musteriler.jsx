@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { exportToExcel } from '../utils/exportExcel'
+import { exportMultiSheet } from '../utils/exportExcel'
 import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where } from 'firebase/firestore'
 import { db, auth } from '../firebase'
 import MusteriModal from '../components/MusteriModal'
@@ -53,19 +53,61 @@ export default function Musteriler() {
 
 
   const handleExport = () => {
-    const data = musteriler.map(m => ({
+    // Sekme 1: Müşteriler genel
+    const genelData = musteriler.map(m => ({
+      'Müşteri ID': m.id,
       'Müşteri Adı': m.ad || '',
       'Ülke': m.ulke || '',
       'Vergi No': m.vergi_no || '',
-      'Sektör': (m.sektor || []).join(', '),
-      'Ürün Tipleri': (m.urun_tipleri || []).join(', '),
-      'Ödeme Vadesi (gün)': m.odeme_vadesi_gun || '',
-      'Kredi Limiti (USD)': m.kredi_limiti_usd || '',
-      'Risk Sınıfı': m.risk_sinifi || '',
       'Yıllık Ciro (USD)': m.yillik_ciro_usd || '',
+      'Kredi Limiti (USD)': m.kredi_limiti_usd || '',
+      'Ödeme Vadesi (gün)': m.odeme_vadesi_gun || '',
+      'Risk Sınıfı': m.risk_sinifi || '',
+      'Notlar': m.notlar || '',
     }))
-    exportToExcel(data, 'musteriler', 'Müşteriler')
+
+    // Sekme 2: Sektör & Ürün
+    const sektorData = musteriler.map(m => ({
+      'Müşteri ID': m.id,
+      'Müşteri Adı': m.ad || '',
+      'Sektörler': (m.sektor || []).join(', '),
+      'Ürün Tipleri': (m.urun_tipleri || []).join(', '),
+    }))
+
+    // Sekme 3: İrtibat Kişileri (her kişi ayrı satır)
+    const irtibatData = []
+    musteriler.forEach(m => {
+      const kisiler = m.irtibat_kisiler || []
+      if (kisiler.length === 0) {
+        irtibatData.push({
+          'Müşteri ID': m.id,
+          'Müşteri Adı': m.ad || '',
+          'Ad': '',
+          'Ünvan': '',
+          'E-posta': '',
+          'Telefon': '',
+        })
+      } else {
+        kisiler.forEach(k => {
+          irtibatData.push({
+            'Müşteri ID': m.id,
+            'Müşteri Adı': m.ad || '',
+            'Ad': k.ad || '',
+            'Ünvan': k.unvan || '',
+            'E-posta': k.email || '',
+            'Telefon': k.tel || '',
+          })
+        })
+      }
+    })
+
+    exportMultiSheet([
+      { name: 'Müşteriler', data: genelData },
+      { name: 'Sektör & Ürün', data: sektorData },
+      { name: 'İrtibat Kişileri', data: irtibatData },
+    ], 'musteriler')
   }
+
   return (
     <div className="p-8">
       <div className="flex items-center justify-between mb-6">
