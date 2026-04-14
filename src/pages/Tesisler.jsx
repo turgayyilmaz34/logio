@@ -210,12 +210,14 @@ const { rol } = useRole()
                   >
                     Düzenle
                   </button>
+                  {canDelete(rol) && (
                   <button
                     onClick={() => tesisSil(tesis.id)}
                     className="text-xs px-3 py-1.5 rounded-lg border border-red-100 text-red-500 hover:bg-red-50"
                   >
                     Sil
                   </button>
+                  )}
                 </div>
               </div>
 
