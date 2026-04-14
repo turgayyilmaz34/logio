@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { exportToExcel } from '../utils/exportExcel'
 import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where } from 'firebase/firestore'
 import { db, auth } from '../firebase'
 import ProjeModal from '../components/ProjeModal'
@@ -75,6 +76,20 @@ export default function Projeler() {
       musteriAd(p.sozlesme_id).toLowerCase().includes(arama.toLowerCase())
     )
 
+
+  const handleExport = () => {
+    const data = projeler.map(p => ({
+      'Proje Adı': p.ad || '',
+      'Müşteri': musteriAd(p.sozlesme_id),
+      'Sözleşme': sozlesmeAd(p.sozlesme_id),
+      'Durum': p.durum || '',
+      'İmza Tarihi': p.imza_tarihi || '',
+      'Operasyon Başlangıcı': p.operasyon_baslangic || '',
+      'Alan Tipleri': (p.alan_tipleri || []).join(', '),
+      'BU Kodu': p.bu_kodu || '',
+    }))
+    exportToExcel(data, 'projeler', 'Projeler')
+  }
   return (
     <div className="p-8">
       <div className="flex items-center justify-between mb-6">
@@ -85,6 +100,10 @@ export default function Projeler() {
         <button onClick={() => { setSecili(null); setModalAcik(true) }}
           className="bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-800">
           + Yeni Proje
+        </button>
+        <button onClick={handleExport}
+          className="px-4 py-2 border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50">
+          ↓ Excel
         </button>
       </div>
 
