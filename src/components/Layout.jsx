@@ -14,6 +14,7 @@ const navItems = [
   { to: '/projeler', label: 'Projeler', icon: '📁' },
   { to: '/ihaleler', label: 'İhaleler', icon: '🏆' },
   { to: '/raporlar', label: 'Raporlar', icon: '📊' },
+  { to: '/anketler', label: 'Anketler', icon: '📝' },
 ]
 
 export default function Layout() {
