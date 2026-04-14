@@ -2,6 +2,7 @@ import { Outlet, NavLink, useNavigate } from 'react-router-dom'
 import { signOut } from 'firebase/auth'
 import { auth } from '../firebase'
 import { useRole, canManageUsers } from '../hooks/useRole'
+import KurGosterge from './KurGosterge'
 
 const ROL_LABEL = { admin: 'Admin', finansal_operasyon: 'Fin. Op.', operasyon: 'Operasyon' }
 const ROL_RENK = { admin: 'bg-blue-100 text-blue-700', finansal_operasyon: 'bg-purple-100 text-purple-700', operasyon: 'bg-green-100 text-green-700' }
@@ -21,6 +22,8 @@ const tanimItems = [
   { to: '/grup-sirketleri', label: 'Grup Şirketleri', icon: '🏢' },
   { to: '/taseronlar', label: 'Taşeronlar', icon: '🏗️' },
   { to: '/rotalar', label: 'Rotalar', icon: '🗺️' },
+  { to: '/mhe', label: 'MHE', icon: '🏗️' },
+  { to: '/tasinma-plani', label: 'Taşınma Planı', icon: '🔄' },
 ]
 
 export default function Layout() {
@@ -38,6 +41,7 @@ export default function Layout() {
         <div className="px-5 py-5 border-b border-gray-100">
           <div className="text-xl font-semibold text-blue-700 tracking-tight">Logio</div>
           <div className="text-xs text-gray-400 mt-0.5">Operasyon Platformu</div>
+          <KurGosterge />
         </div>
 
         <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
