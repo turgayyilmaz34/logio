@@ -8,14 +8,8 @@ import Sozlesmeler from './pages/Sozlesmeler'
 import Projeler from './pages/Projeler'
 import Ihaleler from './pages/Ihaleler'
 import GrupSirketleri from './pages/GrupSirketleri'
+import Raporlar from './pages/Raporlar'
 import Layout from './components/Layout'
-
-const Yapiyor = ({ sayfa }) => (
-  <div className="p-8">
-    <div className="text-xl font-semibold text-gray-800 mb-2">{sayfa}</div>
-    <div className="text-sm text-gray-400">Bu modül yakında hazır olacak.</div>
-  </div>
-)
 
 export default function App() {
   const { user, loading } = useAuthState()
@@ -40,8 +34,8 @@ export default function App() {
           <Route path="sozlesmeler" element={<Sozlesmeler />} />
           <Route path="projeler" element={<Projeler />} />
           <Route path="ihaleler" element={<Ihaleler />} />
+          <Route path="raporlar" element={<Raporlar />} />
           <Route path="grup-sirketleri" element={<GrupSirketleri />} />
-          <Route path="raporlar" element={<Yapiyor sayfa="Raporlar" />} />
         </Route>
       </Routes>
     </BrowserRouter>
