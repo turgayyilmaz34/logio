@@ -17,6 +17,12 @@ const navItems = [
   { to: '/anketler', label: 'Anketler', icon: '📝' },
 ]
 
+const tanimItems = [
+  { to: '/grup-sirketleri', label: 'Grup Şirketleri', icon: '🏢' },
+  { to: '/taseronlar', label: 'Taşeronlar', icon: '🏗️' },
+  { to: '/rotalar', label: 'Rotalar', icon: '🗺️' },
+]
+
 export default function Layout() {
   const navigate = useNavigate()
   const { rol } = useRole()
@@ -34,7 +40,7 @@ export default function Layout() {
           <div className="text-xs text-gray-400 mt-0.5">Operasyon Platformu</div>
         </div>
 
-        <nav className="flex-1 px-3 py-4 space-y-0.5">
+        <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
           {navItems.map(item => (
             <NavLink key={item.to} to={item.to} end={item.to === '/'}
               className={({ isActive }) =>
@@ -50,16 +56,25 @@ export default function Layout() {
 
           <div className="pt-3 mt-3 border-t border-gray-100">
             <div className="text-xs text-gray-300 uppercase tracking-wide px-3 mb-1">Tanımlar</div>
-            <NavLink to="/grup-sirketleri"
-              className={({ isActive }) =>
-                `flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${isActive ? 'bg-blue-50 text-blue-700 font-medium' : 'text-gray-500 hover:bg-gray-50'}`
-              }>
-              <span>🏢</span> Grup Şirketleri
-            </NavLink>
+            {tanimItems.map(item => (
+              <NavLink key={item.to} to={item.to}
+                className={({ isActive }) =>
+                  `flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${isActive
+                    ? 'bg-blue-50 text-blue-700 font-medium'
+                    : 'text-gray-500 hover:bg-gray-50'
+                  }`
+                }>
+                <span className="text-base">{item.icon}</span>
+                {item.label}
+              </NavLink>
+            ))}
             {canManageUsers(rol) && (
               <NavLink to="/kullanicilar"
                 className={({ isActive }) =>
-                  `flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${isActive ? 'bg-blue-50 text-blue-700 font-medium' : 'text-gray-500 hover:bg-gray-50'}`
+                  `flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${isActive
+                    ? 'bg-blue-50 text-blue-700 font-medium'
+                    : 'text-gray-500 hover:bg-gray-50'
+                  }`
                 }>
                 <span>👤</span> Kullanıcılar
               </NavLink>
@@ -77,8 +92,7 @@ export default function Layout() {
           )}
           <button onClick={handleLogout}
             className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-500 hover:bg-gray-50 transition-colors">
-            <span>↩</span>
-            Çıkış
+            <span>↩</span> Çıkış
           </button>
         </div>
       </aside>
