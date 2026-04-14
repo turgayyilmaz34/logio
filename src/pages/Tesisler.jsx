@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { exportToExcel } from '../utils/exportExcel'
 import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where } from 'firebase/firestore'
 import { db, auth } from '../firebase'
 import TesisModal from '../components/TesisModal'
@@ -46,6 +47,20 @@ export default function Tesisler() {
     ? 'bg-green-50 text-green-700'
     : 'bg-blue-50 text-blue-700'
 
+
+  const handleExport = () => {
+    const data = tesisler.map(t => ({
+      'Tesis Adı': t.ad || '',
+      'Şehir': t.sehir || '',
+      'Adres': t.adres || '',
+      'Tür': t.tur === 'mulk' ? 'Mülk' : 'Kiralık',
+      'Tesis Tipi': t.tesis_tipi_primary || '',
+      'Operatör Rolü': t.operator_rolu_primary || '',
+      'TUR Kodu': t.tur_kodu || '',
+      'OSB İçi': t.osb_ici ? 'Evet' : 'Hayır',
+    }))
+    exportToExcel(data, 'tesisler', 'Tesisler')
+  }
   return (
     <div className="p-8">
       <div className="flex items-center justify-between mb-6">
@@ -58,6 +73,10 @@ export default function Tesisler() {
           className="bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-800 transition-colors"
         >
           + Yeni Tesis
+        </button>
+        <button onClick={handleExport}
+          className="px-4 py-2 border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50">
+          ↓ Excel
         </button>
       </div>
 
