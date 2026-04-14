@@ -1,5 +1,5 @@
-
 import { useState, useEffect } from 'react'
+import { exportToExcel } from '../utils/exportExcel'
 import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where } from 'firebase/firestore'
 import { db, auth } from '../firebase'
 import IhaleModal from '../components/IhaleModal'
@@ -89,6 +89,25 @@ export default function Ihaleler() {
       ihaleler.filter(i => ['kazanildi', 'kaybedildi'].includes(i.durum)).length * 100) || 0
     : 0
 
+
+  const handleExport = () => {
+    const data = ihaleler.map(i => ({
+      'İhale Adı': i.ad || '',
+      'Müşteri': musteriAd(i.musteri_id),
+      'Durum': i.durum || '',
+      'Son Başvuru': i.son_basvuru || '',
+      'Tahmini Değer (USD)': i.tahmini_deger_usd || '',
+      'Para Birimi': i.para_birimi || '',
+      'Satış Sorumlusu': i.sorumlu_satis || '',
+      'ZDS Sorumlusu': i.sorumlu_zds || '',
+      'Operasyon Sorumlusu': i.sorumlu_operasyon || '',
+      'Mevcut 3PL': i.mevcut_3pl || '',
+      'Sadece Fiyat': i.sadece_fiyat ? 'Evet' : 'Hayır',
+      'Hizmet Tipleri': (i.hizmet_tipleri || []).join(', '),
+      'Ürün Tipleri': (i.urun_tipleri || []).join(', '),
+    }))
+    exportToExcel(data, 'ihaleler', 'İhaleler')
+  }
   return (
     <div className="p-8">
       <div className="flex items-center justify-between mb-6">
@@ -99,6 +118,10 @@ export default function Ihaleler() {
         <button onClick={() => { setSecili(null); setModalAcik(true) }}
           className="bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-800">
           + Yeni İhale
+        </button>
+        <button onClick={handleExport}
+          className="px-4 py-2 border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50">
+          ↓ Excel
         </button>
       </div>
 
