@@ -358,7 +358,19 @@ export default function SozlesmeModal({ sozlesme, musteriler, tenantId, onKaydet
   useEffect(() => {
     const yukle = async () => {
       const snap = await getDocs(collection(db, 'grup_sirketleri'))
-      setGrupSirketleri(snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => a.ad.localeCompare(b.ad)))
+      const hepsi = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+      const sirali = []
+      const analar = hepsi.filter(s => !s.parent_id).sort((a, b) => a.ad.localeCompare(b.ad))
+      analar.forEach(ana => {
+        sirali.push({ ...ana, _indent: false })
+        hepsi.filter(s => s.parent_id === ana.id).sort((a, b) => a.ad.localeCompare(b.ad)).forEach(alt => {
+          sirali.push({ ...alt, _indent: true })
+        })
+      })
+      hepsi.filter(s => s.parent_id && !analar.find(a => a.id === s.parent_id)).forEach(s => {
+        sirali.push({ ...s, _indent: false })
+      })
+      setGrupSirketleri(sirali)
     }
     yukle()
   }, [])
@@ -429,7 +441,9 @@ export default function SozlesmeModal({ sozlesme, musteriler, tenantId, onKaydet
                     className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:outline-none focus:border-blue-400">
                     <option value="">Seçin (opsiyonel)...</option>
                     {grupSirketleri.map(s => (
-                      <option key={s.id} value={s.id}>{s.ad}</option>
+                      <option key={s.id} value={s.id} disabled={!s.parent_id && grupSirketleri.some(x => x.parent_id === s.id)}>
+                        {s._indent ? `  └ ${s.ad}` : s.ad}
+                      </option>
                     ))}
                   </select>
                 </div>
