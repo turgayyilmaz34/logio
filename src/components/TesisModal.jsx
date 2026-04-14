@@ -56,6 +56,7 @@ const bos = {
     ced: { R: [], A: [], C: [], I: [] },
   },
   kanit: { sozlesme_link: '', ruhsat_link: '', itfaiye_link: '', ced_link: '' },
+  gorsel_link: '',
   notlar: ''
 }
 
@@ -170,6 +171,7 @@ export default function TesisModal({ tesis, onKaydet, onKapat }) {
     itfaiye: tesis.itfaiye || { seviye: null, gecerlilik_tarihi: '', uyari_gun: '', belge_link: '', belge_base64: '', belge_adi: '' },
     raci: tesis.raci || { ruhsat: { R: [], A: [], C: [], I: [] }, itfaiye: { R: [], A: [], C: [], I: [] }, ced: { R: [], A: [], C: [], I: [] } },
     kanit: tesis.kanit || { sozlesme_link: '', ruhsat_link: '', itfaiye_link: '', ced_link: '' },
+    gorsel_link: tesis.gorsel_link || '',
     notlar: tesis.notlar || ''
   } : { ...bos })
 
@@ -341,6 +343,13 @@ export default function TesisModal({ tesis, onKaydet, onKapat }) {
                     </button>
                   ))}
                 </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">Tesis Görseli / Fotoğraf Linki</label>
+                <input value={form.gorsel_link || ''} onChange={e => set('gorsel_link', e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-blue-400"
+                  placeholder="SharePoint, OneDrive, Google Drive linki..." />
               </div>
 
               <div>
