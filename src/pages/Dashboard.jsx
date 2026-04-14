@@ -40,7 +40,8 @@ export default function Dashboard() {
   const [veri, setVeri] = useState({
     tesisler: [], katlar: [], sozlesmeler: [], projeler: [],
     ihaleler: [], musteriler: [], malSahibiSozlesmeleri: [],
-    projeBaginlantilari: []
+    projeBaginlantilari: [],
+    mheEkipmanlar: []
   })
 
   const tenantId = auth.currentUser?.email?.split('@')[1] || 'default'
@@ -63,6 +64,11 @@ export default function Dashboard() {
         malSahibiSozlesmeleri: ms.docs.map(d => ({ id: d.id, ...d.data() })),
         projeBaginlantilari: pb.docs.map(d => ({ id: d.id, ...d.data() })),
       })
+      // MHE ayrı çek
+      try {
+        const mheSnap = await getDocs(query(collection(db, 'mhe_ekipmanlar'), where('tenant_id', '==', tenantId)))
+        setVeri(prev => ({ ...prev, mheEkipmanlar: mheSnap.docs.map(d => ({ id: d.id, ...d.data() })) }))
+      } catch {}
       setYukleniyor(false)
     }
     yukle()
@@ -131,6 +137,17 @@ export default function Dashboard() {
     .map(i => ({
       ad: i.ad || '—',
       bilgi: i.kalan < 0 ? 'Geçti!' : i.kalan === 0 ? 'Bugün!' : `${i.kalan} gün`
+    }))
+
+  // --- MHE kira bitiş uyarıları (30 gün) ---
+  const mheUyarilari = (mheEkipmanlar || [])
+    .filter(e => e.bitis)
+    .map(e => ({ ...e, kalan: gunKaldi(e.bitis) }))
+    .filter(e => e.kalan !== null && e.kalan <= 30)
+    .sort((a, b) => a.kalan - b.kalan)
+    .map(e => ({
+      ad: `${e.tip}${e.marka ? ' — ' + e.marka : ''}`,
+      bilgi: e.kalan < 0 ? `${Math.abs(e.kalan)} gün geçti!` : e.kalan === 0 ? 'Bugün!' : `${e.kalan} gün`
     }))
 
   // --- Sözleşmesiz aktif projeler ---
@@ -315,7 +332,7 @@ export default function Dashboard() {
             </div>
           )}
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <UyariKart
               baslik="⚠️ Sözleşme Bitiş"
               items={sozlesmeUyarilari}
@@ -330,6 +347,11 @@ export default function Dashboard() {
               baslik="🏆 İhale Son Başvuru"
               items={ihaleUyarilari}
               renk="border-red-200 bg-red-50 text-red-800"
+            />
+            <UyariKart
+              baslik="🏗️ MHE Kira Bitiş"
+              items={mheUyarilari}
+              renk="border-violet-200 bg-violet-50 text-violet-800"
             />
           </div>
         </>
