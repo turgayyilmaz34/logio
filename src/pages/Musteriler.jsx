@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { exportMultiSheet } from '../utils/exportExcel'
 import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where } from 'firebase/firestore'
 import { db, auth } from '../firebase'
+import { useRole, canDelete } from '../hooks/useRole'
 import MusteriModal from '../components/MusteriModal'
 
 const RISK_RENK = {
@@ -205,12 +206,14 @@ export default function Musteriler() {
                       >
                         Düzenle
                       </button>
-                      <button
+                      {canDelete(rol) && (
+              <button
                         onClick={() => sil(m.id)}
                         className="text-xs px-3 py-1.5 rounded-lg border border-red-100 text-red-500 hover:bg-red-50"
                       >
                         Sil
                       </button>
+              )}
                     </div>
                   </td>
                 </tr>
