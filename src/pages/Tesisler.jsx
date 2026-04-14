@@ -13,6 +13,8 @@ export default function Tesisler() {
   const [seciliTesis, setSeciliTesis] = useState(null)
   const [acikTesisId, setAcikTesisId] = useState(null)
   const [arama, setArama] = useState('')
+  const [sehirFiltre, setSehirFiltre] = useState('')
+  const [tipFiltre, setTipFiltre] = useState('')
 
 const { rol } = useRole()
     const tenantId = auth.currentUser?.email?.split('@')[1] || 'default'
@@ -46,6 +48,9 @@ const { rol } = useRole()
     yukle()
   }
 
+  const sehirler = [...new Set(tesisler.map(t => t.sehir).filter(Boolean))].sort()
+  const tipler = [...new Set(tesisler.map(t => t.tesis_tipi_primary).filter(Boolean))].sort()
+
   const turRenk = (tur) => tur === 'mulk'
     ? 'bg-green-50 text-green-700'
     : 'bg-blue-50 text-blue-700'
@@ -70,6 +75,9 @@ const { rol } = useRole()
       'Tesis Tipi Secondary': (t.tesis_tipi_secondary || []).join(', '),
       'TUR Kodu': t.tur_kodu || '',
       'OSB İçi': t.osb_ici ? 'Evet' : 'Hayır',
+      'Yapı Tipi': t.yapi_tipi || '',
+      'İşleten Şirket ID': t.isletici_sirket_id || '',
+      'Görsel Link': t.gorsel_link || '',
     }))
 
     // Sekme 2: Katlar
@@ -87,6 +95,8 @@ const { rol } = useRole()
         'Asmakat': k.asmakat_var ? 'Evet' : 'Hayır',
         'Asmakat m²': k.asmakat_var ? (k.asmakat_m2 || 0) : '',
         'Asmakat Açıklama': k.asmakat_aciklama || '',
+        'Rampa Sayısı': k.rampa_sayisi || '',
+        'TUR Kodu': k.tur_kodu || '',
       }
     })
 
@@ -155,8 +165,18 @@ const { rol } = useRole()
             value={arama}
             onChange={e => setArama(e.target.value)}
             placeholder="Tesis adı, şehir, TUR kodu..."
-            className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-blue-400 w-56"
+            className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-blue-400 w-48"
           />
+          <select value={sehirFiltre} onChange={e => setSehirFiltre(e.target.value)}
+            className="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:outline-none focus:border-blue-400">
+            <option value="">Tüm Şehirler</option>
+            {sehirler.map(s => <option key={s} value={s}>{s}</option>)}
+          </select>
+          <select value={tipFiltre} onChange={e => setTipFiltre(e.target.value)}
+            className="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:outline-none focus:border-blue-400">
+            <option value="">Tüm Tipler</option>
+            {tipler.map(t => <option key={t} value={t}>{t}</option>)}
+          </select>
           <button onClick={handleExport}
             className="px-4 py-2 border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50">
             ↓ Excel
@@ -178,11 +198,9 @@ const { rol } = useRole()
       ) : (
         <div className="space-y-3">
           {tesisler.filter(t =>
-            !arama ||
-            t.ad?.toLowerCase().includes(arama.toLowerCase()) ||
-            t.sehir?.toLowerCase().includes(arama.toLowerCase()) ||
-            t.tur_kodu?.toLowerCase().includes(arama.toLowerCase()) ||
-            t.tesis_tipi_primary?.toLowerCase().includes(arama.toLowerCase())
+            (!arama || t.ad?.toLowerCase().includes(arama.toLowerCase()) || t.sehir?.toLowerCase().includes(arama.toLowerCase()) || t.tur_kodu?.toLowerCase().includes(arama.toLowerCase()) || t.tesis_tipi_primary?.toLowerCase().includes(arama.toLowerCase())) &&
+            (!sehirFiltre || t.sehir === sehirFiltre) &&
+            (!tipFiltre || t.tesis_tipi_primary === tipFiltre)
           ).map(tesis => (
             <div key={tesis.id} className="bg-white rounded-xl border border-gray-100 overflow-hidden">
               <div className="flex items-center justify-between p-5">
@@ -192,6 +210,12 @@ const { rol } = useRole()
                       <span className="font-medium text-gray-800">{tesis.ad}</span>
                       <code className="text-xs text-gray-300 font-mono">{tesis.id.slice(0, 8)}…</code>
                     {tesis.tur_kodu && <span className="text-xs bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded font-mono">{tesis.tur_kodu}</span>}
+                    {tesis.gorsel_link && (
+                      <a href={tesis.gorsel_link} target="_blank" rel="noreferrer"
+                        className="text-xs text-blue-500 hover:text-blue-700" title="Tesis görseli">
+                        🖼️
+                      </a>
+                    )}
                     </div>
                     <div className="text-xs text-gray-400 mt-0.5">
                       {tesis.sehir}{tesis.adres ? ` — ${tesis.adres}` : ''}
