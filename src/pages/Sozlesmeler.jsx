@@ -1,5 +1,5 @@
-
 import { useState, useEffect } from 'react'
+import { exportToExcel } from '../utils/exportExcel'
 import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where } from 'firebase/firestore'
 import { db, auth } from '../firebase'
 import SozlesmeModal from '../components/SozlesmeModal'
@@ -80,6 +80,22 @@ export default function Sozlesmeler() {
     )
     .sort((a, b) => a.bitis?.localeCompare(b.bitis || '') || 0)
 
+
+  const handleExport = () => {
+    const data = sozlesmeler.map(s => ({
+      'Sözleşme Adı': s.ad || '',
+      'Müşteri': musteriAd(s.musteri_id),
+      'Tip': s.tip || '',
+      'Durum': s.durum || '',
+      'Başlangıç': s.baslangic || '',
+      'Bitiş': s.bitis || '',
+      'Para Birimi': s.para_birimi || '',
+      'İmzalayan Şirket': s.imzalayan_sirket || '',
+      'Sözleşme Yapısı': s.sozlesme_tipi || '',
+      'Artış Var': s.artis_var ? 'Evet' : 'Hayır',
+    }))
+    exportToExcel(data, 'sozlesmeler', 'Sözleşmeler')
+  }
   return (
     <div className="p-8">
       <div className="flex items-center justify-between mb-6">
@@ -92,6 +108,10 @@ export default function Sozlesmeler() {
           className="bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-800"
         >
           + Yeni Sözleşme
+        </button>
+        <button onClick={handleExport}
+          className="px-4 py-2 border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50">
+          ↓ Excel
         </button>
       </div>
 
