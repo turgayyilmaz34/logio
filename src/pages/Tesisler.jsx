@@ -12,6 +12,7 @@ export default function Tesisler() {
   const [modalAcik, setModalAcik] = useState(false)
   const [seciliTesis, setSeciliTesis] = useState(null)
   const [acikTesisId, setAcikTesisId] = useState(null)
+  const [arama, setArama] = useState('')
 
 const { rol } = useRole()
     const tenantId = auth.currentUser?.email?.split('@')[1] || 'default'
@@ -149,10 +150,18 @@ const { rol } = useRole()
         >
           + Yeni Tesis
         </button>
-        <button onClick={handleExport}
-          className="px-4 py-2 border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50">
-          ↓ Excel
-        </button>
+        <div className="flex items-center gap-3">
+          <input
+            value={arama}
+            onChange={e => setArama(e.target.value)}
+            placeholder="Tesis adı, şehir, TUR kodu..."
+            className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-blue-400 w-56"
+          />
+          <button onClick={handleExport}
+            className="px-4 py-2 border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50">
+            ↓ Excel
+          </button>
+        </div>
       </div>
 
       {loading ? (
@@ -168,7 +177,13 @@ const { rol } = useRole()
         </div>
       ) : (
         <div className="space-y-3">
-          {tesisler.map(tesis => (
+          {tesisler.filter(t =>
+            !arama ||
+            t.ad?.toLowerCase().includes(arama.toLowerCase()) ||
+            t.sehir?.toLowerCase().includes(arama.toLowerCase()) ||
+            t.tur_kodu?.toLowerCase().includes(arama.toLowerCase()) ||
+            t.tesis_tipi_primary?.toLowerCase().includes(arama.toLowerCase())
+          ).map(tesis => (
             <div key={tesis.id} className="bg-white rounded-xl border border-gray-100 overflow-hidden">
               <div className="flex items-center justify-between p-5">
                 <div className="flex items-center gap-4">
