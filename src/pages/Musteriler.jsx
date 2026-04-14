@@ -18,7 +18,8 @@ export default function Musteriler() {
   const [secili, setSecili] = useState(null)
   const [arama, setArama] = useState('')
 
-  const tenantId = auth.currentUser?.email?.split('@')[1] || 'default'
+const { rol } = useRole()
+    const tenantId = auth.currentUser?.email?.split('@')[1] || 'default'
 
   const yukle = async () => {
     setLoading(true)
