@@ -15,6 +15,8 @@ import Anketler from './pages/Anketler'
 import AnketDoldur from './pages/AnketDoldur'
 import Taseronlar from './pages/Taseronlar'
 import Rotalar from './pages/Rotalar'
+import MHE from './pages/MHE'
+import TasinmaPlani from './pages/TasinmaPlani'
 import Layout from './components/Layout'
 
 function AppWithRole() {
@@ -49,6 +51,8 @@ function AppWithRole() {
             <Route path="kullanicilar" element={<Kullanicilar />} />
             <Route path="taseronlar" element={<Taseronlar />} />
             <Route path="rotalar" element={<Rotalar />} />
+            <Route path="mhe" element={<MHE />} />
+            <Route path="tasinma-plani" element={<TasinmaPlani />} />
           </Route>
         </Routes>
       </BrowserRouter>
