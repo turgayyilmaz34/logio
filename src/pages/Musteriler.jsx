@@ -3,6 +3,7 @@ import { exportMultiSheet } from '../utils/exportExcel'
 import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where } from 'firebase/firestore'
 import { db, auth } from '../firebase'
 import { useRole, canDelete } from '../hooks/useRole'
+import { auditLog } from '../utils/auditLog'
 import MusteriModal from '../components/MusteriModal'
 
 const RISK_RENK = {
@@ -60,8 +61,10 @@ const { rol } = useRole()
   const kaydet = async (veri) => {
     if (secili) {
       await updateDoc(doc(db, 'musteriler', secili.id), veri)
+      await auditLog({ modul: 'musteriler', islem: 'guncelle', kayitId: secili.id, kayitAd: veri.ad })
     } else {
-      await addDoc(collection(db, 'musteriler'), { ...veri, tenant_id: tenantId })
+      const ref = await addDoc(collection(db, 'musteriler'), { ...veri, tenant_id: tenantId })
+      await auditLog({ modul: 'musteriler', islem: 'ekle', kayitId: ref.id, kayitAd: veri.ad })
     }
     setModalAcik(false)
     yukle()
@@ -69,7 +72,9 @@ const { rol } = useRole()
 
   const sil = async (id) => {
     if (!window.confirm('Bu müşteriyi silmek istediğinize emin misiniz?')) return
+    const m = musteriler.find(x => x.id === id)
     await deleteDoc(doc(db, 'musteriler', id))
+    await auditLog({ modul: 'musteriler', islem: 'sil', kayitId: id, kayitAd: m?.ad })
     yukle()
   }
 
