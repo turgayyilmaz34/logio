@@ -3,6 +3,7 @@ import { exportMultiSheet } from '../utils/exportExcel'
 import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where } from 'firebase/firestore'
 import { db, auth } from '../firebase'
 import { useRole, canDelete } from '../hooks/useRole'
+import { auditLog } from '../utils/auditLog'
 import TesisModal from '../components/TesisModal'
 import KatlarPanel from '../components/KatlarPanel'
 
@@ -34,15 +35,19 @@ const { rol } = useRole()
 
   const tesisSil = async (id) => {
     if (!window.confirm('Bu tesisi silmek istediğinize emin misiniz?')) return
+    const t = tesisler.find(x => x.id === id)
     await deleteDoc(doc(db, 'tesisler', id))
+    await auditLog({ modul: 'tesisler', islem: 'sil', kayitId: id, kayitAd: t?.ad })
     yukle()
   }
 
   const modalKaydet = async (veri) => {
     if (seciliTesis) {
       await updateDoc(doc(db, 'tesisler', seciliTesis.id), veri)
+      await auditLog({ modul: 'tesisler', islem: 'guncelle', kayitId: seciliTesis.id, kayitAd: veri.ad })
     } else {
-      await addDoc(collection(db, 'tesisler'), { ...veri, tenant_id: tenantId })
+      const ref = await addDoc(collection(db, 'tesisler'), { ...veri, tenant_id: tenantId })
+      await auditLog({ modul: 'tesisler', islem: 'ekle', kayitId: ref.id, kayitAd: veri.ad })
     }
     setModalAcik(false)
     yukle()
