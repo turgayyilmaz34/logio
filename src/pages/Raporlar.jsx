@@ -3,6 +3,7 @@ import { collection, getDocs, query, where } from 'firebase/firestore'
 import { db, auth } from '../firebase'
 import { exportMultiSheet } from '../utils/exportExcel'
 import { useRole, canSeeMali, isOperasyon } from '../hooks/useRole'
+import { kurlariGetir, kurdanCevir } from '../utils/kurService'
 import YogunlukHaritasi from '../components/YogunlukHaritasi'
 import M2MaliyetRaporu from '../components/M2MaliyetRaporu'
 import WhiteSpaceRaporu from '../components/WhiteSpaceRaporu'
@@ -59,10 +60,12 @@ export default function Raporlar() {
   const TABS = isOperasyon(rol) ? TABS_FULL.filter(t => t.id === 'kapasite') : TABS_FULL
   const [aktifTab, setAktifTab] = useState('ciro')
   const [yukleniyor, setYukleniyor] = useState(true)
+  const [kurlar, setKurlar] = useState(null)
+  const [ciroPB, setCiroPB] = useState('USD')
   const [veri, setVeri] = useState({
     sozlesmeler: [], musteriler: [], projeler: [],
     ihaleler: [], tesisler: [], katlar: [],
-    projeBaginlantilari: []
+    projeBaginlantilari: [], malSahibiSoz: []
   })
 
   const tenantId = auth.currentUser?.email?.split('@')[1] || 'default'
@@ -70,11 +73,13 @@ export default function Raporlar() {
   useEffect(() => {
     const yukle = async () => {
       const q = (col) => getDocs(query(collection(db, col), where('tenant_id', '==', tenantId)))
-      const [s, m, p, i, t, k, pb] = await Promise.all([
+      const [s, m, p, i, t, k, pb, ms] = await Promise.all([
         q('sozlesmeler'), q('musteriler'), q('projeler'),
         q('ihaleler'), q('tesisler'), q('katlar'),
-        q('proje_kat_baginlantilari'),
+        q('proje_kat_baginlantilari'), q('mal_sahibi_sozlesmeleri'),
       ])
+      const kur = await kurlariGetir()
+      setKurlar(kur)
       setVeri({
         sozlesmeler: s.docs.map(d => ({ id: d.id, ...d.data() })),
         musteriler: m.docs.map(d => ({ id: d.id, ...d.data() })),
@@ -83,6 +88,7 @@ export default function Raporlar() {
         tesisler: t.docs.map(d => ({ id: d.id, ...d.data() })),
         katlar: k.docs.map(d => ({ id: d.id, ...d.data() })),
         projeBaginlantilari: pb.docs.map(d => ({ id: d.id, ...d.data() })),
+        malSahibiSoz: ms.docs.map(d => ({ id: d.id, ...d.data() })),
       })
       setYukleniyor(false)
     }
@@ -91,18 +97,93 @@ export default function Raporlar() {
 
   if (yukleniyor) return <div className="p-8 text-sm text-gray-400">Yükleniyor...</div>
 
-  const { sozlesmeler, musteriler, projeler, ihaleler, tesisler, katlar, projeBaginlantilari } = veri
+  const { sozlesmeler, musteriler, projeler, ihaleler, tesisler, katlar, projeBaginlantilari, malSahibiSoz } = veri
 
   const musteriAd = (id) => musteriler.find(m => m.id === id)?.ad || '—'
 
   // CİRO & MARJ
   const TIP_LABEL = { depolama: 'Depolama', transport: 'Transport', vas: 'VAS', karma: 'Karma' }
 
+  // Müşteri sözleşmesinden aylık gelir hesabı (TRY bazında)
+  const sozlesmeGelirTRY = (soz) => {
+    if (!soz || soz.durum !== 'aktif') return 0
+    // Depolama: m² fiyatı × sözleşme m²
+    if (soz.dep_m2_birim_fiyat > 0) {
+      // Bağlı katların m²'sini bul
+      const bagKatIds = soz.dep_kat_ids || []
+      const bagKatM2 = bagKatIds.length > 0
+        ? katlar.filter(k => bagKatIds.includes(k.id)).reduce((acc, k) => acc + (k.sozlesme_m2 || k.kullanilabilir_m2 || 0), 0)
+        : 0
+      const m2 = bagKatM2 || 0
+      return kurdanCevir(soz.dep_m2_birim_fiyat * m2, soz.para_birimi || 'USD', 'TRY', kurlar)
+    }
+    // Sabit tutar
+    if (soz.dep_sabit_baz > 0) {
+      return kurdanCevir(soz.dep_sabit_baz, soz.para_birimi || 'USD', 'TRY', kurlar)
+    }
+    return 0
+  }
+
+  // Tesis bazında mal sahibi aylık kirası (TRY)
+  const tesisMalSahibiKiraTRY = (tesisId) => {
+    const tesisKatlari = katlar.filter(k => k.tesis_id === tesisId)
+    return tesisKatlari.reduce((acc, k) => {
+      const katSoz = malSahibiSoz
+        .filter(ms => ms.kat_id === k.id)
+        .sort((a, b) => (b.baslangic || '').localeCompare(a.baslangic || ''))[0]
+      if (!katSoz) return acc
+      let aylik = 0
+      if (katSoz.m2_birim_fiyat > 0) {
+        aylik = katSoz.m2_birim_fiyat * (k.sozlesme_m2 || 0)
+      } else if (katSoz.sabit_tutar > 0) {
+        aylik = katSoz.sabit_tutar
+      }
+      return acc + kurdanCevir(aylik, katSoz.para_birimi || 'TRY', 'TRY', kurlar)
+    }, 0)
+  }
+
+  // Aktif sözleşmeler bazında ciro
+  const aktifSozlesmeler = sozlesmeler.filter(s => s.durum === 'aktif')
+  const toplamGelirTRY = aktifSozlesmeler.reduce((acc, s) => acc + sozlesmeGelirTRY(s), 0)
+
+  // Tüm tesislerin mal sahibi kirası toplamı
+  const toplamMalSahibiKiraTRY = tesisler.reduce((acc, t) => acc + tesisMalSahibiKiraTRY(t.id), 0)
+  const brutMarjTRY = toplamGelirTRY - toplamMalSahibiKiraTRY
+  const brutMarjYuzde = toplamGelirTRY > 0 ? Math.round(brutMarjTRY / toplamGelirTRY * 100) : null
+
+  const fmtPB = (tryVal) => {
+    const val = kurdanCevir(tryVal || 0, 'TRY', ciroPB, kurlar)
+    return `${val.toLocaleString('tr-TR', { maximumFractionDigits: 0 })} ${ciroPB}`
+  }
+
+  // Müşteri bazında ciro
   const musteriCiro = musteriler.map(m => {
     const mSoz = sozlesmeler.filter(s => s.musteri_id === m.id)
-    const aktif = mSoz.filter(s => s.durum === 'aktif').length
-    return { musteriAd: m.ad, toplamSozlesme: mSoz.length, aktifSozlesme: aktif, risk: m.risk_sinifi || '—' }
-  }).filter(m => m.toplamSozlesme > 0).sort((a, b) => b.toplamSozlesme - a.toplamSozlesme)
+    const aktif = mSoz.filter(s => s.durum === 'aktif')
+    const gelirTRY = aktif.reduce((acc, s) => acc + sozlesmeGelirTRY(s), 0)
+    return {
+      musteriAd: m.ad,
+      toplamSozlesme: mSoz.length,
+      aktifSozlesme: aktif.length,
+      gelirTRY,
+      risk: m.risk_sinifi || '—'
+    }
+  }).filter(m => m.toplamSozlesme > 0).sort((a, b) => b.gelirTRY - a.gelirTRY)
+
+  // Tesis bazında ciro ve marj
+  const tesisCiro = tesisler.map(t => {
+    const tesisKatlari = katlar.filter(k => k.tesis_id === t.id)
+    const katIdSet = new Set(tesisKatlari.map(k => k.id))
+    // Bu tesisteki katlara bağlı aktif sözleşmeler
+    const tesSoz = aktifSozlesmeler.filter(s =>
+      (s.dep_kat_ids || []).some(kid => katIdSet.has(kid))
+    )
+    const gelirTRY = tesSoz.reduce((acc, s) => acc + sozlesmeGelirTRY(s), 0)
+    const maliyetTRY = tesisMalSahibiKiraTRY(t.id)
+    const marjTRY = gelirTRY - maliyetTRY
+    const marjYuzde = gelirTRY > 0 ? Math.round(marjTRY / gelirTRY * 100) : null
+    return { tesis: t, gelirTRY, maliyetTRY, marjTRY, marjYuzde, sozSayisi: tesSoz.length }
+  }).filter(t => t.gelirTRY > 0 || t.maliyetTRY > 0).sort((a, b) => b.gelirTRY - a.gelirTRY)
 
   const sozlesmeBitis = sozlesmeler
     .filter(s => s.durum === 'aktif' && s.bitis)
@@ -204,51 +285,145 @@ export default function Raporlar() {
       {/* CİRO & MARJ */}
       {aktifTab === 'ciro' && (
         <div className="space-y-6">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <MetrikKart label="Toplam Sözleşme" value={sozlesmeler.length} sub={`${sozlesmeler.filter(s => s.durum === 'aktif').length} aktif`} />
-            <MetrikKart label="Toplam Müşteri" value={musteriler.length} sub={`${musteriCiro.length} sözleşmeli`} />
-            <MetrikKart label="Aktif Proje" value={aktifProjeler.length} sub={`${projeler.filter(p => p.durum === 'operasyon').length} operasyonda`} renk="text-green-600" />
-            <MetrikKart label="Sözleşmesiz Proje" value={projeler.filter(p => !p.sozlesme_id && ['teklif','sozlesme','operasyon'].includes(p.durum)).length} sub="Bağlantı gerekiyor" renk="text-amber-600" />
+          {/* Para birimi seçici */}
+          <div className="flex items-center gap-3">
+            <div className="text-xs text-gray-400">Para Birimi:</div>
+            {['TRY', 'USD', 'EUR'].map(pb => (
+              <button key={pb} onClick={() => setCiroPB(pb)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${ciroPB === pb ? 'bg-blue-700 text-white border-blue-700' : 'bg-white text-gray-600 border-gray-200'}`}>
+                {pb}
+              </button>
+            ))}
+            {kurlar?.fallback && <span className="text-xs text-amber-500">⚠ Tahmini kur</span>}
           </div>
 
+          {/* Portföy özeti */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="bg-white rounded-xl border border-gray-100 p-5">
+              <div className="text-xs text-gray-400 uppercase tracking-wide mb-2">Aylık Gelir</div>
+              <div className="text-2xl font-semibold text-green-600">{fmtPB(toplamGelirTRY)}</div>
+              <div className="text-xs text-gray-400 mt-1">{aktifSozlesmeler.length} aktif sözleşme</div>
+            </div>
+            <div className="bg-white rounded-xl border border-gray-100 p-5">
+              <div className="text-xs text-gray-400 uppercase tracking-wide mb-2">Aylık Mal Sahibi Kirası</div>
+              <div className="text-2xl font-semibold text-red-500">{fmtPB(toplamMalSahibiKiraTRY)}</div>
+              <div className="text-xs text-gray-400 mt-1">{tesisler.length} tesis</div>
+            </div>
+            <div className="bg-white rounded-xl border border-gray-100 p-5">
+              <div className="text-xs text-gray-400 uppercase tracking-wide mb-2">Brüt Marj</div>
+              <div className={`text-2xl font-semibold ${brutMarjTRY >= 0 ? 'text-blue-600' : 'text-red-600'}`}>
+                {fmtPB(brutMarjTRY)}
+              </div>
+              <div className="text-xs text-gray-400 mt-1">
+                {brutMarjYuzde !== null ? `%${brutMarjYuzde} marj` : 'Gelir girilmemiş'}
+              </div>
+            </div>
+            <div className="bg-white rounded-xl border border-gray-100 p-5">
+              <div className="text-xs text-gray-400 uppercase tracking-wide mb-2">Yıllık Projeksiyon</div>
+              <div className="text-2xl font-semibold text-gray-800">{fmtPB(brutMarjTRY * 12)}</div>
+              <div className="text-xs text-gray-400 mt-1">Brüt marj × 12</div>
+            </div>
+          </div>
+
+          {/* Sözleşme tipi dağılımı */}
           <div className="bg-white rounded-xl border border-gray-100 p-5">
             <div className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-4">Sözleşme Tipi Dağılımı</div>
             <div className="grid grid-cols-4 gap-4">
               {['depolama', 'transport', 'vas', 'karma'].map(tip => {
                 const sayi = sozlesmeler.filter(s => s.tip === tip).length
                 const aktif = sozlesmeler.filter(s => s.tip === tip && s.durum === 'aktif').length
+                const tipGelir = aktifSozlesmeler.filter(s => s.tip === tip).reduce((acc, s) => acc + sozlesmeGelirTRY(s), 0)
                 return (
                   <div key={tip} className="text-center p-4 bg-gray-50 rounded-xl">
                     <div className="text-2xl font-semibold text-gray-700">{sayi}</div>
                     <div className="text-xs text-gray-400 mt-1">{TIP_LABEL[tip]}</div>
                     {aktif > 0 && <div className="text-xs text-green-600 mt-0.5">{aktif} aktif</div>}
+                    {tipGelir > 0 && <div className="text-xs text-blue-600 mt-0.5 font-medium">{fmtPB(tipGelir)}</div>}
                   </div>
                 )
               })}
             </div>
           </div>
 
+          {/* Müşteri bazında */}
           <div className="bg-white rounded-xl border border-gray-100 overflow-hidden">
             <div className="px-5 py-4 border-b border-gray-100">
-              <div className="text-xs font-medium text-gray-400 uppercase tracking-wide">Müşteri Bazında</div>
+              <div className="text-xs font-medium text-gray-400 uppercase tracking-wide">Müşteri Bazında Ciro</div>
             </div>
             <Tablo
-              basliklar={['Müşteri', 'Toplam Sözleşme', 'Aktif', 'Risk']}
-              satirlar={musteriCiro.map(m => [m.musteriAd, m.toplamSozlesme, m.aktifSozlesme, m.risk])}
+              basliklar={['Müşteri', 'Aktif Sözleşme', 'Aylık Gelir', 'Risk']}
+              satirlar={musteriCiro.map(m => [
+                m.musteriAd,
+                m.aktifSozlesme,
+                <span className={`font-medium ${m.gelirTRY > 0 ? 'text-green-600' : 'text-gray-400'}`}>
+                  {m.gelirTRY > 0 ? fmtPB(m.gelirTRY) : '—'}
+                </span>,
+                m.risk
+              ])}
               bos="Henüz sözleşmeli müşteri yok."
             />
           </div>
 
+          {/* Tesis bazında */}
+          {tesisCiro.length > 0 && (
+            <div className="bg-white rounded-xl border border-gray-100 overflow-hidden">
+              <div className="px-5 py-4 border-b border-gray-100">
+                <div className="text-xs font-medium text-gray-400 uppercase tracking-wide">Tesis Bazında Gelir & Marj</div>
+              </div>
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-gray-50">
+                    <th className="text-left px-5 py-3 text-xs text-gray-400 font-medium uppercase">Tesis</th>
+                    <th className="text-right px-5 py-3 text-xs text-gray-400 font-medium uppercase">Aylık Gelir</th>
+                    <th className="text-right px-5 py-3 text-xs text-gray-400 font-medium uppercase">Mal Sahibi Kirası</th>
+                    <th className="text-right px-5 py-3 text-xs text-gray-400 font-medium uppercase">Brüt Marj</th>
+                    <th className="text-right px-5 py-3 text-xs text-gray-400 font-medium uppercase">Marj %</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {tesisCiro.map((t, i) => (
+                    <tr key={t.tesis.id} className={`border-b border-gray-50 hover:bg-gray-50 ${i === tesisCiro.length - 1 ? 'border-0' : ''}`}>
+                      <td className="px-5 py-3.5">
+                        <div className="text-sm font-medium text-gray-800">{t.tesis.ad}</div>
+                        <div className="text-xs text-gray-400">{t.tesis.sehir}</div>
+                      </td>
+                      <td className="px-5 py-3.5 text-right">
+                        <span className="text-sm font-semibold text-green-600">{fmtPB(t.gelirTRY)}</span>
+                      </td>
+                      <td className="px-5 py-3.5 text-right">
+                        <span className="text-sm text-red-500">{fmtPB(t.maliyetTRY)}</span>
+                      </td>
+                      <td className="px-5 py-3.5 text-right">
+                        <span className={`text-sm font-semibold ${t.marjTRY >= 0 ? 'text-blue-600' : 'text-red-600'}`}>
+                          {fmtPB(t.marjTRY)}
+                        </span>
+                      </td>
+                      <td className="px-5 py-3.5 text-right">
+                        {t.marjYuzde !== null ? (
+                          <span className={`text-sm font-semibold ${t.marjYuzde >= 30 ? 'text-green-600' : t.marjYuzde >= 0 ? 'text-amber-600' : 'text-red-600'}`}>
+                            %{t.marjYuzde}
+                          </span>
+                        ) : '—'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {/* 180 gün içinde biten sözleşmeler */}
           {sozlesmeBitis.length > 0 && (
             <div className="bg-white rounded-xl border border-gray-100 overflow-hidden">
               <div className="px-5 py-4 border-b border-gray-100">
                 <div className="text-xs font-medium text-gray-400 uppercase tracking-wide">180 Gün İçinde Biten Sözleşmeler</div>
               </div>
               <Tablo
-                basliklar={['Sözleşme', 'Müşteri', 'Bitiş', 'Kalan Gün']}
+                basliklar={['Sözleşme', 'Müşteri', 'Aylık Gelir', 'Bitiş', 'Kalan']}
                 satirlar={sozlesmeBitis.map(s => [
                   s.ad || s.id.slice(0, 8),
                   musteriAd(s.musteri_id),
+                  <span className="font-medium text-green-600">{sozlesmeGelirTRY(s) > 0 ? fmtPB(sozlesmeGelirTRY(s)) : '—'}</span>,
                   s.bitis,
                   <span className={s.kalan < 0 ? 'text-red-600 font-medium' : s.kalan <= 30 ? 'text-amber-600 font-medium' : 'text-gray-600'}>
                     {s.kalan < 0 ? `${Math.abs(s.kalan)} gün geçti!` : `${s.kalan} gün`}
