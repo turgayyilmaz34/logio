@@ -1,4 +1,3 @@
-
 import { doc, getDoc, setDoc } from 'firebase/firestore'
 import { db } from '../firebase'
 
@@ -36,7 +35,14 @@ export async function kurlariGetir() {
     return kurlar
   } catch (e) {
     console.error('Kur çekme hatası:', e)
-    return null
+    // Fallback — makul sabit değerler (kullanıcıya uyarı gösterilmeli)
+    return {
+      USD_TRY: 32.0,
+      EUR_TRY: 34.5,
+      EUR_USD: 1.08,
+      guncelleme: null,
+      fallback: true,
+    }
   }
 }
 
