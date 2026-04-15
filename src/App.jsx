@@ -17,6 +17,7 @@ import Taseronlar from './pages/Taseronlar'
 import Rotalar from './pages/Rotalar'
 import MHE from './pages/MHE'
 import TasinmaPlani from './pages/TasinmaPlani'
+import AuditLog from './pages/AuditLog'
 import Layout from './components/Layout'
 
 function AppWithRole() {
@@ -53,6 +54,7 @@ function AppWithRole() {
             <Route path="rotalar" element={<Rotalar />} />
             <Route path="mhe" element={<MHE />} />
             <Route path="tasinma-plani" element={<TasinmaPlani />} />
+            <Route path="audit-log" element={<AuditLog />} />
           </Route>
         </Routes>
       </BrowserRouter>
