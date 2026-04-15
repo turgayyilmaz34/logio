@@ -78,7 +78,7 @@ export default function Dashboard() {
     <div className="p-8 text-sm text-gray-400">Yükleniyor...</div>
   )
 
-  const { tesisler, katlar, sozlesmeler, projeler, ihaleler, musteriler, malSahibiSozlesmeleri, projeBaginlantilari } = veri
+  const { tesisler, katlar, sozlesmeler, projeler, ihaleler, musteriler, malSahibiSozlesmeleri, projeBaginlantilari, mheEkipmanlar = [] } = veri
 
   // --- Kapasite hesapları ---
   // Toplam kullanılabilir (asmakat hariç — asmakat bonus)
