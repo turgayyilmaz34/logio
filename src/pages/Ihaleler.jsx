@@ -3,6 +3,7 @@ import { exportMultiSheet } from '../utils/exportExcel'
 import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where } from 'firebase/firestore'
 import { db, auth } from '../firebase'
 import { useRole, canDelete } from '../hooks/useRole'
+import { auditLog } from '../utils/auditLog'
 import IhaleModal from '../components/IhaleModal'
 
 const DURUM_RENK = {
@@ -57,8 +58,10 @@ const { rol } = useRole()
   const kaydet = async (veri) => {
     if (secili) {
       await updateDoc(doc(db, 'ihaleler', secili.id), veri)
+      await auditLog({ modul: 'ihaleler', islem: 'guncelle', kayitId: secili.id, kayitAd: veri.ad })
     } else {
-      await addDoc(collection(db, 'ihaleler'), { ...veri, tenant_id: tenantId })
+      const ref = await addDoc(collection(db, 'ihaleler'), { ...veri, tenant_id: tenantId })
+      await auditLog({ modul: 'ihaleler', islem: 'ekle', kayitId: ref.id, kayitAd: veri.ad })
     }
     setModalAcik(false)
     yukle()
@@ -66,7 +69,9 @@ const { rol } = useRole()
 
   const sil = async (id) => {
     if (!window.confirm('Bu ihaleyi silmek istediğinize emin misiniz?')) return
+    const ih = ihaleler.find(x => x.id === id)
     await deleteDoc(doc(db, 'ihaleler', id))
+    await auditLog({ modul: 'ihaleler', islem: 'sil', kayitId: id, kayitAd: ih?.ad })
     yukle()
   }
 
