@@ -3,6 +3,7 @@ import { exportMultiSheet } from '../utils/exportExcel'
 import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where } from 'firebase/firestore'
 import { db, auth } from '../firebase'
 import { useRole, canDelete, canSeeMali } from '../hooks/useRole'
+import { auditLog } from '../utils/auditLog'
 import SozlesmeModal from '../components/SozlesmeModal'
 
 const TIP_RENK = {
@@ -61,8 +62,10 @@ const { rol } = useRole()
   const kaydet = async (veri) => {
     if (secili) {
       await updateDoc(doc(db, 'sozlesmeler', secili.id), veri)
+      await auditLog({ modul: 'sozlesmeler', islem: 'guncelle', kayitId: secili.id, kayitAd: veri.ad || veri.id })
     } else {
-      await addDoc(collection(db, 'sozlesmeler'), { ...veri, tenant_id: tenantId })
+      const ref = await addDoc(collection(db, 'sozlesmeler'), { ...veri, tenant_id: tenantId })
+      await auditLog({ modul: 'sozlesmeler', islem: 'ekle', kayitId: ref.id, kayitAd: veri.ad })
     }
     setModalAcik(false)
     yukle()
