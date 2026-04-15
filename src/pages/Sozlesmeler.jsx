@@ -70,7 +70,9 @@ const { rol } = useRole()
 
   const sil = async (id) => {
     if (!window.confirm('Bu sözleşmeyi silmek istediğinize emin misiniz?')) return
+    const _rec = sozlesmeler.find(x => x.id === id)
     await deleteDoc(doc(db, 'sozlesmeler', id))
+    await auditLog({ modul: 'sozlesmeler', islem: 'sil', kayitId: id, kayitAd: _rec?.ad })
     yukle()
   }
 
