@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where } from 'firebase/firestore'
 import { db, auth } from '../firebase'
 import { useRole, canDelete } from '../hooks/useRole'
+import { auditLog } from '../utils/auditLog'
 
 export default function GrupSirketleri() {
 const { rol } = useRole()
@@ -60,7 +61,9 @@ const { rol } = useRole()
     const altlar = altSirketler(id)
     if (altlar.length > 0) return alert('Önce alt şirketleri silin veya taşıyın.')
     if (!window.confirm('Bu şirketi silmek istediğinize emin misiniz?')) return
+    const _s = sirketler.find(x => x.id === id)
     await deleteDoc(doc(db, 'grup_sirketleri', id))
+    await auditLog({ modul: 'grup_sirketleri', islem: 'sil', kayitId: id, kayitAd: _s?.ad })
     yukle()
   }
 
