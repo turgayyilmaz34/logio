@@ -139,6 +139,28 @@ export default function Dashboard() {
       bilgi: i.kalan < 0 ? 'Geçti!' : i.kalan === 0 ? 'Bugün!' : `${i.kalan} gün`
     }))
 
+  // --- Ruhsat / İtfaiye / ÇED bitiş uyarıları ---
+  const belgeSuresiUyarilari = tesisler.flatMap(t => {
+    const uyarilar = []
+    const kontrol = (belge, ad) => {
+      if (!belge) return
+      const tarih = belge.gecerlilik_tarihi || belge.onay_tarihi
+      if (!tarih) return
+      const kalan = gunKaldi(tarih)
+      const uyariGun = Number(belge.uyari_gun) || 90
+      if (kalan !== null && kalan <= uyariGun) {
+        uyarilar.push({
+          ad: `${t.ad} — ${ad}`,
+          bilgi: kalan < 0 ? `${Math.abs(kalan)} gün geçti!` : kalan === 0 ? 'Bugün!' : `${kalan} gün kaldı`
+        })
+      }
+    }
+    kontrol(t.ruhsat, 'Ruhsat')
+    kontrol(t.itfaiye, 'İtfaiye')
+    kontrol(t.ced, 'ÇED')
+    return uyarilar
+  })
+
   // --- MHE kira bitiş uyarıları (30 gün) ---
   const mheUyarilari = (mheEkipmanlar || [])
     .filter(e => e.bitis)
