@@ -7,6 +7,10 @@ import { kurlariGetir, kurdanCevir } from '../utils/kurService'
 import YogunlukHaritasi from '../components/YogunlukHaritasi'
 import M2MaliyetRaporu from '../components/M2MaliyetRaporu'
 import WhiteSpaceRaporu from '../components/WhiteSpaceRaporu'
+import PortfoySaglikSkoru from '../components/PortfoySaglikSkoru'
+import GelirAkisiTakvimi from '../components/GelirAkisiTakvimi'
+import MusteriSagligi from '../components/MusteriSagligi'
+import IhaleDonusumHunisi from '../components/IhaleDonusumHunisi'
 
 const TABS_FULL = [
   { id: 'ciro', label: 'Ciro & Marj' },
@@ -15,6 +19,10 @@ const TABS_FULL = [
   { id: 'yogunluk', label: 'Yoğunluk Haritası' },
   { id: 'm2_maliyet', label: 'm² Maliyet' },
   { id: 'white_space', label: 'White Space' },
+  { id: 'portfoy_saglik', label: 'Portföy Sağlık' },
+  { id: 'gelir_takvimi', label: 'Gelir Takvimi' },
+  { id: 'musteri_sagligi', label: 'Müşteri Sağlığı' },
+  { id: 'ihale_hunisi', label: 'İhale Hunisi' },
 ]
 
 function MetrikKart({ label, value, sub, renk }) {
@@ -537,6 +545,11 @@ export default function Raporlar() {
       {aktifTab === 'm2_maliyet' && (
         <M2MaliyetRaporu />
       )}
+
+      {aktifTab === 'portfoy_saglik' && <PortfoySaglikSkoru />}
+      {aktifTab === 'gelir_takvimi' && <GelirAkisiTakvimi />}
+      {aktifTab === 'musteri_sagligi' && <MusteriSagligi />}
+      {aktifTab === 'ihale_hunisi' && <IhaleDonusumHunisi />}
 
       {/* YOĞUNLUK HARİTASI */}
       {aktifTab === 'yogunluk' && (
