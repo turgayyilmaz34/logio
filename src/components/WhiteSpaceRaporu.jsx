@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react'
 import { collection, getDocs, query, where } from 'firebase/firestore'
 import { db, auth } from '../firebase'
@@ -232,6 +231,9 @@ export default function WhiteSpaceRaporu() {
                   <div>
                     <div className="font-medium text-gray-800">{t.tesis.ad}</div>
                     <div className="text-xs text-gray-400">{t.tesis.sehir} · {fmt(t.toplamKulM2)} m² toplam · %{t.doluYuzde} dolu</div>
+                    {t.aylikMalSahibiKiraTRY === 0 && t.bosM2 > 0 && (
+                      <div className="text-xs text-amber-600 mt-0.5">⚠️ Mal sahibi sözleşmesi girilmemiş — maliyet hesaplanamıyor</div>
+                    )}
                   </div>
                   <div className="flex items-center gap-4">
                     <div className="text-right">
@@ -349,6 +351,16 @@ export default function WhiteSpaceRaporu() {
           )
         })}
       </div>
+
+      {/* Mal sahibi sözleşmesi eksik tesisler uyarısı */}
+      {veri.filter(t => t.bosM2 > 0 && t.aylikMalSahibiKiraTRY === 0).length > 0 && (
+        <div className="bg-amber-50 border border-amber-200 rounded-xl px-5 py-3">
+          <div className="text-xs font-medium text-amber-700">
+            ⚠️ Aşağıdaki tesisler için mal sahibi sözleşmesi girilmemiş — white space maliyeti eksik hesaplanıyor:{' '}
+            {veri.filter(t => t.bosM2 > 0 && t.aylikMalSahibiKiraTRY === 0).map(t => t.tesis.ad).join(', ')}
+          </div>
+        </div>
+      )}
 
       {/* Boş alanı olmayan tesisler özet */}
       {veri.filter(t => t.bosM2 === 0 && t.potansiyel.length === 0).length > 0 && (
