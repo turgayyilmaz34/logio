@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react'
 import { collection, getDocs, query, where, limit } from 'firebase/firestore'
 import { db, auth } from '../firebase'
