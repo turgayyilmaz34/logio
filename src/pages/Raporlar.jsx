@@ -4,12 +4,14 @@ import { db, auth } from '../firebase'
 import { exportMultiSheet } from '../utils/exportExcel'
 import { useRole, canSeeMali, isOperasyon } from '../hooks/useRole'
 import YogunlukHaritasi from '../components/YogunlukHaritasi'
+import M2MaliyetRaporu from '../components/M2MaliyetRaporu'
 
 const TABS_FULL = [
   { id: 'ciro', label: 'Ciro & Marj' },
   { id: 'kapasite', label: 'Kapasite & Doluluk' },
   { id: 'ihale', label: 'İhale Analizi' },
   { id: 'yogunluk', label: 'Yoğunluk Haritası' },
+  { id: 'm2_maliyet', label: 'm² Maliyet' },
 ]
 
 function MetrikKart({ label, value, sub, renk }) {
@@ -347,6 +349,11 @@ export default function Raporlar() {
             />
           </div>
         </div>
+      )}
+
+      {/* m² MALİYET */}
+      {aktifTab === 'm2_maliyet' && (
+        <M2MaliyetRaporu />
       )}
 
       {/* YOĞUNLUK HARİTASI */}
