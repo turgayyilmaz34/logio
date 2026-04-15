@@ -3,6 +3,7 @@ import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where } 
 import { db, auth } from '../firebase'
 import { useRole, canDelete } from '../hooks/useRole'
 import { kurlariGetir, kurdanCevir } from '../utils/kurService'
+import { exportMultiSheet } from '../utils/exportExcel'
 
 const EKIPMAN_TIPLERI = [
   'Counterbalance Forklift', 'Reach Truck (RT)', 'HLOP (High Level Order Picker)',
@@ -216,6 +217,47 @@ export default function MHE() {
 
   const ozet = DURUMLAR.reduce((acc, d) => ({ ...acc, [d]: ekipmanlar.filter(e => e.durum === d).length }), {})
 
+
+  const handleExport = async () => {
+    const atSnap = await getDocs(query(collection(db, 'mhe_atamalari'), where('tenant_id', '==', tenantId)))
+    const atamalar = atSnap.docs.map(d => ({ id: d.id, ...d.data() }))
+
+    const ekipmanData = ekipmanlar.map(e => ({
+      'Ekipman ID': e.id,
+      'Tip': e.tip || '',
+      'Marka': e.marka || '',
+      'Model': e.model || '',
+      'Seri No': e.seri_no || '',
+      'Durum': DURUM_LABEL[e.durum] || e.durum,
+      'Bulunduğu Tesis': tesisler.find(t => t.id === e.tesis_id)?.ad || '',
+      'Kiralayan Firma': e.kiralayan_firma || '',
+      'Kira Başlangıç': e.kira_baslangic || '',
+      'Kira Bitiş': e.kira_bitis || '',
+      'Aylık Kira': e.aylik_kira || 0,
+      'Para Birimi': e.para_birimi || '',
+      'Aylık Kira TRY': kurdanCevir(e.aylik_kira || 0, e.para_birimi || 'TRY', 'TRY', kurlar).toFixed(2),
+      'Kira Sözleşme': e.kira_sozlesme_link || '',
+    }))
+
+    const atamaData = atamalar.map(a => {
+      const e = ekipmanlar.find(x => x.id === a.ekipman_id)
+      const p = projeler.find(x => x.id === a.proje_id)
+      return {
+        'Ekipman ID': a.ekipman_id,
+        'Ekipman': e ? `${e.tip} ${e.marka || ''}`.trim() : '',
+        'Proje': p?.ad || '',
+        'Atama Başlangıç': a.baslangic || '',
+        'Atama Bitiş': a.bitis || '',
+        'Notlar': a.notlar || '',
+      }
+    })
+
+    exportMultiSheet([
+      { name: 'MHE Ekipmanlar', data: ekipmanData },
+      { name: 'Atamalar', data: atamaData },
+    ], 'mhe_ekipmanlar')
+  }
+
   return (
     <div className="p-8">
       <div className="flex items-center justify-between mb-6">
@@ -239,6 +281,10 @@ export default function MHE() {
             <option value="">Tüm Tipler</option>
             {EKIPMAN_TIPLERI.map(t => <option key={t} value={t}>{t}</option>)}
           </select>
+          <button onClick={handleExport}
+            className="px-4 py-2 border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50">
+            ↓ Excel
+          </button>
           <button onClick={() => { setSecili(null); setForm(bosEkipman); setModalAcik(true) }}
             className="bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-800">
             + Ekipman Ekle
