@@ -1,1 +1,46 @@
 
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Kullanıcı oturum açmış mı?
+    function girisYapilmis() {
+      return request.auth != null;
+    }
+
+    // Tenant ID kontrolü — kullanıcının email domain'i ile eşleşmeli
+    function dogruTenant(tenantId) {
+      return request.auth.token.email.split('@')[1] == tenantId;
+    }
+
+    // Sistem koleksiyonları — oturum açmış herkes okuyabilir, yazabilir (kurlar, hedefler)
+    match /sistem/{doc} {
+      allow read, write: if girisYapilmis();
+    }
+
+    // Audit logs — oturum açmış herkes yazabilir, okuyabilir
+    match /audit_logs/{doc} {
+      allow read, write: if girisYapilmis();
+    }
+
+    // Anket doldurma — public (token bazlı erişim, login gerektirmez)
+    match /anketler/{doc} {
+      allow read: if true;  // Public link ile okunabilir
+      allow write: if girisYapilmis();
+    }
+    match /anket_cevaplari/{doc} {
+      allow read: if girisYapilmis();
+      allow create: if true;  // Public — müşteri dolduruyor
+    }
+
+    // Tüm diğer koleksiyonlar — oturum açmış kullanıcılar
+    match /{collection}/{doc} {
+      allow read, write: if girisYapilmis();
+    }
+
+    // Alt koleksiyonlar
+    match /{collection}/{doc}/{subcollection}/{subdoc} {
+      allow read, write: if girisYapilmis();
+    }
+  }
+}
