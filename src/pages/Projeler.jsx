@@ -3,6 +3,7 @@ import { exportMultiSheet } from '../utils/exportExcel'
 import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where } from 'firebase/firestore'
 import { db, auth } from '../firebase'
 import { useRole, canDelete, isOperasyon } from '../hooks/useRole'
+import { auditLog } from '../utils/auditLog'
 import ProjeModal from '../components/ProjeModal'
 
 const DURUM_RENK = {
@@ -57,8 +58,10 @@ const { rol } = useRole()
   const kaydet = async (veri) => {
     if (secili) {
       await updateDoc(doc(db, 'projeler', secili.id), veri)
+      await auditLog({ modul: 'projeler', islem: 'guncelle', kayitId: secili.id, kayitAd: veri.ad })
     } else {
-      await addDoc(collection(db, 'projeler'), { ...veri, tenant_id: tenantId })
+      const ref = await addDoc(collection(db, 'projeler'), { ...veri, tenant_id: tenantId })
+      await auditLog({ modul: 'projeler', islem: 'ekle', kayitId: ref.id, kayitAd: veri.ad })
     }
     setModalAcik(false)
     yukle()
@@ -66,7 +69,9 @@ const { rol } = useRole()
 
   const sil = async (id) => {
     if (!window.confirm('Bu projeyi silmek istediğinize emin misiniz?')) return
+    const p = projeler.find(x => x.id === id)
     await deleteDoc(doc(db, 'projeler', id))
+    await auditLog({ modul: 'projeler', islem: 'sil', kayitId: id, kayitAd: p?.ad })
     yukle()
   }
 
