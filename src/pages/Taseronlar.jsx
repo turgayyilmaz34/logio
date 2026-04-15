@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where } from 'firebase/firestore'
 import { db, auth } from '../firebase'
 import { useRole, canDelete } from '../hooks/useRole'
+import { auditLog } from '../utils/auditLog'
 
 const TASERON_TIPLERI = ['Nakliye', 'Depolama', 'Elleçleme', 'Güvenlik', 'Temizlik', 'IT', 'İnşaat', 'Diğer']
 
@@ -42,7 +43,9 @@ export default function Taseronlar() {
 
   const sil = async (id) => {
     if (!window.confirm('Bu taşeronu silmek istediğinize emin misiniz?')) return
+    const _rec = taseronlar.find(x => x.id === id)
     await deleteDoc(doc(db, 'taseronlar', id))
+    await auditLog({ modul: 'taseronlar', islem: 'sil', kayitId: id, kayitAd: _rec?.ad })
     yukle()
   }
 
