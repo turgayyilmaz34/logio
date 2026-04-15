@@ -1,8 +1,8 @@
-
 import { useState, useEffect } from 'react'
 import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where } from 'firebase/firestore'
 import { db, auth } from '../firebase'
 import { useRole, canDelete } from '../hooks/useRole'
+import { auditLog } from '../utils/auditLog'
 
 const bos = {
   ad: '', baslangic: '', bitis: '', mesafe_km: '',
@@ -50,7 +50,9 @@ export default function Rotalar() {
 
   const sil = async (id) => {
     if (!window.confirm('Bu rotayı silmek istediğinize emin misiniz?')) return
+    const _rec = rotalar.find(x => x.id === id)
     await deleteDoc(doc(db, 'rotalar', id))
+    await auditLog({ modul: 'rotalar', islem: 'sil', kayitId: id, kayitAd: _rec?.ad })
     yukle()
   }
 
