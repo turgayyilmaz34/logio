@@ -120,7 +120,7 @@ export default function Raporlar() {
       // Bağlı katların m²'sini bul
       const bagKatIds = soz.dep_kat_ids || []
       const bagKatM2 = bagKatIds.length > 0
-        ? katlar.filter(k => bagKatIds.includes(k.id)).reduce((acc, k) => acc + (k.sozlesme_m2 || k.kullanilabilir_m2 || 0), 0)
+        ? katlar.filter(k => bagKatIds.includes(k.id)).reduce((acc, k) => acc + (k.kullanilabilir_m2 || 0), 0)
         : 0
       const m2 = bagKatM2 || 0
       return kurdanCevir(soz.dep_m2_birim_fiyat * m2, soz.para_birimi || 'USD', 'TRY', kurlar)
@@ -152,7 +152,10 @@ export default function Raporlar() {
 
   // Aktif sözleşmeler bazında ciro
   const aktifSozlesmeler = sozlesmeler.filter(s => s.durum === 'aktif')
-  const toplamGelirTRY = aktifSozlesmeler.reduce((acc, s) => acc + sozlesmeGelirTRY(s), 0)
+  // toplamGelirTRY müşteri bazlı hesaptan türetiliyor — tutarsızlığı önlemek için
+  const toplamGelirTRY = aktifSozlesmeler
+    .filter(s => musteriler.some(m => m.id === s.musteri_id))
+    .reduce((acc, s) => acc + sozlesmeGelirTRY(s), 0)
 
   // Tüm tesislerin mal sahibi kirası toplamı
   const toplamMalSahibiKiraTRY = tesisler.reduce((acc, t) => acc + tesisMalSahibiKiraTRY(t.id), 0)
