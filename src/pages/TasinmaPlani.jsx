@@ -1,6 +1,6 @@
-
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where, setDoc } from 'firebase/firestore'
+import { exportMultiSheet } from '../utils/exportExcel'
 import { db, auth } from '../firebase'
 
 // Sabit uyumluluk matrisi — kullanıcı bu kuralları yönetir
@@ -230,6 +230,45 @@ export default function TasinmaPlani() {
 
   const [kuralForm, setKuralForm] = useState({ a: '', b: '', durum: 'uyumlu' })
 
+
+  const handleExport = () => {
+    if (!aktifPlan) return alert('Önce bir plan seçin.')
+    const musteriAd_ = (sozId) => {
+      const soz = sozlesmeler.find(s => s.id === sozId)
+      return musteriler.find(m => m.id === soz?.musteri_id)?.ad || '—'
+    }
+    const planData = projeler.map(p => ({
+      'Proje': p.ad || '',
+      'Müşteri': musteriAd_(p.sozlesme_id),
+      'Proje Durumu': p.durum || '',
+      'Atanan Tesis': tesisler.find(t => t.id === yerlesim[p.id])?.ad || 'Atanmamış',
+      'Tesis Şehir': tesisler.find(t => t.id === yerlesim[p.id])?.sehir || '',
+      'Alan Tipleri': (p.alan_tipleri || []).join(', '),
+    }))
+
+    const uyumData = []
+    projeler.forEach(p => {
+      const pTesis = yerlesim[p.id]
+      if (!pTesis) return
+      projeler.forEach(diger => {
+        if (diger.id <= p.id) return
+        if (yerlesim[diger.id] !== pTesis) return
+        const durum = uyumlulukKontrol(p.alan_tipleri?.[0], diger.alan_tipleri?.[0], kurallar)
+        if (!durum) return
+        uyumData.push({
+          'Tesis': tesisler.find(t => t.id === pTesis)?.ad || '',
+          'Proje A': p.ad, 'Proje B': diger.ad,
+          'Uyumluluk': durum === 'uyumlu' ? '✓ Uyumlu' : durum === 'dikkat' ? '⚠ Dikkat' : '✕ Uyumsuz',
+        })
+      })
+    })
+
+    exportMultiSheet([
+      { name: aktifPlan.ad, data: planData },
+      { name: 'Uyumluluk Kontrol', data: uyumData },
+    ], `tasinma_${aktifPlan.ad.replace(/\s/g, '_')}`)
+  }
+
   if (yukleniyor) return <div className="p-8 text-sm text-gray-400">Yükleniyor...</div>
 
   return (
@@ -244,6 +283,12 @@ export default function TasinmaPlani() {
             <button onClick={yerlesimKaydet}
               className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700">
               💾 Kaydet
+            </button>
+          )}
+          {aktifPlan && (
+            <button onClick={handleExport}
+              className="px-4 py-2 border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50">
+              ↓ Excel
             </button>
           )}
           <button onClick={() => setPlanModalAcik(true)}
