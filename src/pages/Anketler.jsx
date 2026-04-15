@@ -1,6 +1,6 @@
-
 import { useState, useEffect } from 'react'
 import { collection, getDocs, addDoc, query, where, orderBy } from 'firebase/firestore'
+import { exportMultiSheet } from '../utils/exportExcel'
 import { db, auth } from '../firebase'
 
 const NPS_RENK = (n) => n >= 9 ? 'bg-green-50 text-green-700' : n >= 7 ? 'bg-amber-50 text-amber-700' : 'bg-red-50 text-red-700'
@@ -112,6 +112,44 @@ export default function Anketler() {
 
   if (loading) return <div className="p-8 text-sm text-gray-400">Yükleniyor...</div>
 
+
+  const handleExport = () => {
+    const anketData = anketler.map(a => {
+      const cevap = anketCevabi(a.id)
+      return {
+        'Anket ID': a.id,
+        'Müşteri': musteriAd(a.musteri_id),
+        'Konu': a.konu || '',
+        'Dil': a.dil || '',
+        'Oluşturma': a.olusturma_tarihi ? new Date(a.olusturma_tarihi).toLocaleDateString('tr-TR') : '',
+        'Durum': cevap ? 'Yanıtlandı' : 'Bekliyor',
+        'NPS': cevap?.nps ?? '',
+        'CSAT': cevap?.csat ?? '',
+        'Yorum': cevap?.yorum || '',
+        'Yanıt Tarihi': cevap?.tarih ? new Date(cevap.tarih).toLocaleDateString('tr-TR') : '',
+      }
+    })
+
+    const cevapData = cevaplar.map(c => {
+      const anket = anketler.find(a => a.id === c.anket_id)
+      return {
+        'Müşteri': musteriAd(anket?.musteri_id),
+        'Konu': anket?.konu || '',
+        'NPS': c.nps ?? '',
+        'NPS Kategori': c.nps >= 9 ? 'Promoter' : c.nps >= 7 ? 'Pasif' : c.nps !== undefined ? 'Detractor' : '',
+        'CSAT': c.csat ?? '',
+        'Yorum': c.yorum || '',
+        'Dil': c.dil || '',
+        'Tarih': c.tarih ? new Date(c.tarih).toLocaleDateString('tr-TR') : '',
+      }
+    })
+
+    exportMultiSheet([
+      { name: 'Anketler', data: anketData },
+      { name: 'Cevaplar', data: cevapData },
+    ], 'anketler')
+  }
+
   return (
     <div className="p-8">
       <div className="flex items-center justify-between mb-6">
@@ -119,6 +157,10 @@ export default function Anketler() {
           <h1 className="text-xl font-semibold text-gray-800">Anketler</h1>
           <p className="text-sm text-gray-400 mt-0.5">{anketler.length} anket · {doluCevaplar.length} yanıt</p>
         </div>
+        <button onClick={handleExport}
+          className="px-4 py-2 border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50">
+          ↓ Excel
+        </button>
         <button onClick={() => setYeniAcik(true)}
           className="bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-800">
           + Yeni Anket
