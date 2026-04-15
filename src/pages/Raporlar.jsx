@@ -5,6 +5,7 @@ import { exportMultiSheet } from '../utils/exportExcel'
 import { useRole, canSeeMali, isOperasyon } from '../hooks/useRole'
 import YogunlukHaritasi from '../components/YogunlukHaritasi'
 import M2MaliyetRaporu from '../components/M2MaliyetRaporu'
+import WhiteSpaceRaporu from '../components/WhiteSpaceRaporu'
 
 const TABS_FULL = [
   { id: 'ciro', label: 'Ciro & Marj' },
@@ -12,6 +13,7 @@ const TABS_FULL = [
   { id: 'ihale', label: 'İhale Analizi' },
   { id: 'yogunluk', label: 'Yoğunluk Haritası' },
   { id: 'm2_maliyet', label: 'm² Maliyet' },
+  { id: 'white_space', label: 'White Space' },
 ]
 
 function MetrikKart({ label, value, sub, renk }) {
@@ -349,6 +351,11 @@ export default function Raporlar() {
             />
           </div>
         </div>
+      )}
+
+      {/* WHITE SPACE */}
+      {aktifTab === 'white_space' && (
+        <WhiteSpaceRaporu />
       )}
 
       {/* m² MALİYET */}
